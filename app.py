@@ -9,12 +9,14 @@ from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'deeptrek-secret-key')
+app.secret_key = 'deeptrek-secret-key'
+
+# ==================== ПАРОЛЬ (только здесь, не показывается на сайте) ====================
+ADMIN_PASSWORD = 'levalevag'
 
 # ==================== ДАННЫЕ ====================
 users = {}
 banned_users = []
-ADMIN_PASSWORD = 'levalevag'
 
 # ==================== API КЛЮЧИ ====================
 api_keys = {
@@ -94,7 +96,7 @@ def check_api_key():
         return None
     return api_key if api_key in api_keys else None
 
-# ==================== HTML СТРАНИЦА (информация об API) ====================
+# ==================== HTML СТРАНИЦА (без пароля) ====================
 HOME_HTML = '''
 <!DOCTYPE html>
 <html lang="ru">
@@ -266,7 +268,7 @@ HOME_HTML = '''
             
             <div class="endpoint">
                 <div><span class="method">GET/POST</span> <span class="path">/admin</span></div>
-                <div class="desc">Админ-панель (пароль: levalevag)</div>
+                <div class="desc">Админ-панель</div>
             </div>
         </div>
         
@@ -482,7 +484,6 @@ def search():
     if not query:
         return jsonify({'error': 'Пустой запрос'}), 400
     
-    # Проверка API ключа
     api_key = request.headers.get('X-API-Key')
     if not api_key or api_key not in api_keys:
         return jsonify({'error': 'Неверный или отсутствующий API-ключ'}), 403
