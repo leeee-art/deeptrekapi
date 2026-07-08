@@ -8,6 +8,9 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+# ==================== СЕКРЕТНЫЙ КЛЮЧ ====================
+API_SECRET = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
+
 # ==================== ТОКЕНЫ ====================
 ATLAS_TOKEN = "sub_1tme688x58j6v3s03jhc9nvh"
 ATLAS_URL = "https://atlas-in.cc/app"
@@ -37,6 +40,8 @@ def detect_type(query):
         return "passport"
     if query.startswith('@'):
         return "telegram"
+    if re.match(r'^\d+$', query):
+        return "vk"
     return "fio"
 
 # ==================== ATLAS ====================
@@ -48,8 +53,11 @@ def search_atlas(query, search_type):
         "method": "full"
     }
     try:
-        response = requests.get(ATLAS_URL, params=params, timeout=30)
-        return {"source": "atlas", "data": response.json()} if response.status_code == 200 else {"source": "atlas", "error": f"Код: {response.status_code}"}
+        r = requests.get(ATLAS_URL, params=params, timeout=30)
+        if r.status_code == 200:
+            return {"source": "atlas", "data": r.json()}
+        else:
+            return {"source": "atlas", "error": f"Код: {r.status_code}"}
     except Exception as e:
         return {"source": "atlas", "error": str(e)}
 
@@ -61,17 +69,20 @@ def search_blackeye(query, search_type):
         "limit": 100
     }
     try:
-        response = requests.post(
+        r = requests.post(
             BLACKEYE_URL,
             headers={"Authorization": f"Bearer {BLACKEYE_TOKEN}", "Content-Type": "application/json"},
             json=data,
             timeout=20
         )
-        return {"source": "blackeye", "data": response.json()} if response.status_code == 200 else {"source": "blackeye", "error": f"Код: {response.status_code}"}
+        if r.status_code == 200:
+            return {"source": "blackeye", "data": r.json()}
+        else:
+            return {"source": "blackeye", "error": f"Код: {r.status_code}"}
     except Exception as e:
         return {"source": "blackeye", "error": str(e)}
 
-# ==================== INTELX (только по номеру) ====================
+# ==================== INTELX ====================
 def search_intelx(phone):
     phone = re.sub(r'\D', '', phone)
     if len(phone) < 8:
@@ -79,9 +90,9 @@ def search_intelx(phone):
     
     url = f"https://data.intelx.io/saverudata/db2/dbpn/{phone[:2]}/{phone[2:4]}/{phone[4:6]}/{phone[6:8]}.csv"
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
-        if response.status_code == 200:
-            reader = csv.reader(io.StringIO(response.text))
+        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+        if r.status_code == 200:
+            reader = csv.reader(io.StringIO(r.text))
             rows = list(reader)
             if len(rows) > 1:
                 headers = rows[0]
@@ -101,6 +112,11 @@ def search_intelx(phone):
 # ==================== ОБЩИЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
+    # Проверка секретного ключа
+    secret = request.headers.get('X-API-Secret')
+    if secret != API_SECRET:
+        return jsonify({"error": "Неверный секретный ключ"}), 403
+    
     data = request.get_json()
     if not data:
         return jsonify({"error": "Нет данных"}), 400
@@ -117,18 +133,36 @@ def search():
         "sources": []
     }
     
-    # Atlas (всегда)
+    # Atlas
     results["sources"].append(search_atlas(query, search_type))
     
-    # BlackEye (всегда)
+    # BlackEye
     results["sources"].append(search_blackeye(query, search_type))
     
-    # IntelX (только для телефонов)
+    # IntelX (только для телефона)
     if search_type == "phone":
         results["sources"].append(search_intelx(query))
     
     return jsonify(results)
 
+# ==================== HEALTH ====================
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+
+# ==================== ROOT ====================
+@app.route('/')
+def index():
+    return jsonify({
+        "name": "DeepTrek API",
+        "version": "2.0",
+        "endpoints": {
+            "/search": "POST - поиск (нужен X-API-Secret)",
+            "/health": "GET - статус"
+        },
+        "sources": ["Atlas", "BlackEye", "IntelX"]
+    })
+
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
