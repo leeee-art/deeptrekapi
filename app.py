@@ -8,7 +8,6 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# ==================== СЕКРЕТНЫЙ КЛЮЧ ====================
 API_SECRET = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 
 # ==================== ТОКЕНЫ ====================
@@ -44,7 +43,8 @@ def detect_type(query):
         return "telegram"
     if re.match(r'^\d+$', query):
         return "vk"
-    return "fio"
+    # Если ничего не подошло — считаем, что это ник или ФИО
+    return "username"
 
 # ==================== ATLAS ====================
 def search_atlas(query, search_type):
@@ -60,19 +60,31 @@ def search_atlas(query, search_type):
     except Exception as e:
         return {"source": "atlas", "error": str(e)}
 
-# ==================== SNUSBASE ====================
+# ==================== SNUSBASE (ИСПРАВЛЕН) ====================
 def search_snusbase(query, search_type):
-    if not search_type:
-        search_type = "email" if re.search(r'@', query) else "username"
+    # Определяем тип для Snusbase
+    if search_type == "email":
+        snus_type = "email"
+    elif search_type in ["username", "fio"]:
+        snus_type = "username"
+    else:
+        snus_type = "username"
     
-    payload = {"type": search_type, "term": query}
+    payload = {
+        "terms": [query],
+        "types": [snus_type],
+        "wildcard": False
+    }
     headers = {
-        "Authorization": f"Bearer {SNUSBASE_KEY}",
+        "Auth": SNUSBASE_KEY,
         "Content-Type": "application/json"
     }
     try:
         r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30)
-        return {"source": "snusbase", "data": r.json()} if r.status_code == 200 else {"source": "snusbase", "error": f"Код: {r.status_code}"}
+        if r.status_code == 200:
+            return {"source": "snusbase", "data": r.json()}
+        else:
+            return {"source": "snusbase", "error": f"Код: {r.status_code}"}
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
@@ -158,7 +170,7 @@ def search():
     if search_type == "phone":
         results["sources"].append(search_intelx(query))
     
-    # VK — если похоже на ID или короткий адрес
+    # VK — для ID или короткого адреса
     if search_type == "vk" or re.match(r'^[a-zA-Z0-9_.]+$', query):
         results["sources"].append(search_vk(query))
     
@@ -174,7 +186,7 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "3.0",
+        "version": "3.1",
         "endpoints": {
             "/search": "POST - поиск (нужен X-API-Secret)",
             "/health": "GET - статус"
