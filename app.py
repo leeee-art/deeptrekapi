@@ -15,17 +15,19 @@ API_SECRET = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 ATLAS_TOKEN = "sub_1tme688x58j6v3s03jhc9nvh"
 ATLAS_URL = "https://atlas-in.cc/app"
 
-BLACKEYE_TOKEN = "Ay1E06CKjfaWqTDyUwtj2g"
-BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
+SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
+SNUSBASE_URL = "https://api.snusbase.com/data/search"
+
+VK_TOKEN = "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c"
+VK_API = "https://api.vk.com/method/users.get"
 
 # ==================== АВТО-ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query):
     query = query.strip()
-    
-    if re.match(r'^[78]\d{10}$', re.sub(r'\D', '', query)):
-        return "phone"
     if re.search(r'@', query):
         return "email"
+    if re.match(r'^[78]\d{10}$', re.sub(r'\D', '', query)):
+        return "phone"
     if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', query):
         return "ip"
     if re.match(r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$', query, re.IGNORECASE):
@@ -54,33 +56,25 @@ def search_atlas(query, search_type):
     }
     try:
         r = requests.get(ATLAS_URL, params=params, timeout=30)
-        if r.status_code == 200:
-            return {"source": "atlas", "data": r.json()}
-        else:
-            return {"source": "atlas", "error": f"Код: {r.status_code}"}
+        return {"source": "atlas", "data": r.json()} if r.status_code == 200 else {"source": "atlas", "error": f"Код: {r.status_code}"}
     except Exception as e:
         return {"source": "atlas", "error": str(e)}
 
-# ==================== BLACKEYE ====================
-def search_blackeye(query, search_type):
-    data = {
-        "type": search_type,
-        "q": query,
-        "limit": 100
+# ==================== SNUSBASE ====================
+def search_snusbase(query, search_type):
+    if not search_type:
+        search_type = "email" if re.search(r'@', query) else "username"
+    
+    payload = {"type": search_type, "term": query}
+    headers = {
+        "Authorization": f"Bearer {SNUSBASE_KEY}",
+        "Content-Type": "application/json"
     }
     try:
-        r = requests.post(
-            BLACKEYE_URL,
-            headers={"Authorization": f"Bearer {BLACKEYE_TOKEN}", "Content-Type": "application/json"},
-            json=data,
-            timeout=20
-        )
-        if r.status_code == 200:
-            return {"source": "blackeye", "data": r.json()}
-        else:
-            return {"source": "blackeye", "error": f"Код: {r.status_code}"}
+        r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30)
+        return {"source": "snusbase", "data": r.json()} if r.status_code == 200 else {"source": "snusbase", "error": f"Код: {r.status_code}"}
     except Exception as e:
-        return {"source": "blackeye", "error": str(e)}
+        return {"source": "snusbase", "error": str(e)}
 
 # ==================== INTELX ====================
 def search_intelx(phone):
@@ -109,10 +103,30 @@ def search_intelx(phone):
     except Exception as e:
         return {"source": "intelx", "error": str(e)}
 
-# ==================== ОБЩИЙ ПОИСК ====================
+# ==================== VK ====================
+def search_vk(query):
+    params = {
+        "access_token": VK_TOKEN,
+        "v": "5.131",
+        "user_ids": query,
+        "fields": "first_name,last_name,status,sex,country,photo_max_orig"
+    }
+    try:
+        r = requests.get(VK_API, params=params, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            if "response" in data and data["response"]:
+                return {"source": "vk", "data": data["response"]}
+            else:
+                return {"source": "vk", "error": "Пользователь не найден"}
+        else:
+            return {"source": "vk", "error": f"Код: {r.status_code}"}
+    except Exception as e:
+        return {"source": "vk", "error": str(e)}
+
+# ==================== ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
-    # Проверка секретного ключа
     secret = request.headers.get('X-API-Secret')
     if secret != API_SECRET:
         return jsonify({"error": "Неверный секретный ключ"}), 403
@@ -133,15 +147,20 @@ def search():
         "sources": []
     }
     
-    # Atlas
+    # Atlas — всегда
     results["sources"].append(search_atlas(query, search_type))
     
-    # BlackEye
-    results["sources"].append(search_blackeye(query, search_type))
+    # Snusbase — для email, username, fio
+    if search_type in ["email", "username", "fio"]:
+        results["sources"].append(search_snusbase(query, search_type))
     
-    # IntelX (только для телефона)
+    # IntelX — только для телефона
     if search_type == "phone":
         results["sources"].append(search_intelx(query))
+    
+    # VK — если похоже на ID или короткий адрес
+    if search_type == "vk" or re.match(r'^[a-zA-Z0-9_.]+$', query):
+        results["sources"].append(search_vk(query))
     
     return jsonify(results)
 
@@ -155,14 +174,13 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "2.0",
+        "version": "3.0",
         "endpoints": {
             "/search": "POST - поиск (нужен X-API-Secret)",
             "/health": "GET - статус"
         },
-        "sources": ["Atlas", "BlackEye", "IntelX"]
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK"]
     })
 
-# ==================== ЗАПУСК ====================
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
