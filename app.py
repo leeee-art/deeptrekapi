@@ -12,9 +12,8 @@ app = Flask(__name__)
 CORS(app)
 
 # ==================== БАЗА ПОДПИСОК ====================
-# В реальном проекте использовать БД (SQLite/PostgreSQL)
-subscriptions = {}  # {secret_key: {"api_key": str, "expires": datetime, "created": datetime}}
-api_keys = {}       # {api_key: secret_key}
+subscriptions = {}
+api_keys = {}
 
 # ==================== HTML СТРАНИЦА АКТИВАЦИИ ====================
 ACTIVATE_HTML = '''
@@ -132,7 +131,7 @@ ACTIVATE_HTML = '''
         <div class="subtitle">Активация API ключа</div>
         
         <form id="activateForm">
-            <input type="text" id="secretKey" placeholder="Введите секретный ключ" required>
+            <input type="text" id="secretKey" placeholder="Введите секретный ключ..." required>
             <button type="submit">🔑 Активировать</button>
         </form>
         
@@ -262,38 +261,19 @@ def activate():
     if not secret_key:
         return jsonify({"status": "error", "error": "Введите секретный ключ"})
     
-    # Проверка, не использован ли уже этот ключ
     if secret_key in subscriptions:
-        # Проверяем, прошло ли 17 дней
         created = subscriptions[secret_key]["created"]
         days_since = (datetime.now() - created).days
         if days_since < 17:
             can_reactivate = created + timedelta(days=17)
             return jsonify({
                 "status": "error",
-                "error": f"Этот ключ уже использован. Повторная активация через {17 - days_since} дней (с {can_reactivate.strftime('%Y-%m-%d %H:%M')})"
-            })
-        else:
-            # Если прошло 17+ дней — можно использовать снова
-            api_key = f"deeptrek_{secrets.token_hex(16)}"
-            expires = datetime.now() + timedelta(days=14)
-            subscriptions[secret_key] = {
-                "api_key": api_key,
-                "expires": expires,
-                "created": datetime.now()
-            }
-            api_keys[api_key] = secret_key
-            return jsonify({
-                "status": "ok",
-                "api_key": api_key,
-                "expires": expires.isoformat()
+                "error": f"Ключ уже использован. Повторно через {17 - days_since} дней (с {can_reactivate.strftime('%Y-%m-%d %H:%M')})"
             })
     
-    # Генерируем новый API-ключ
     api_key = f"deeptrek_{secrets.token_hex(16)}"
     expires = datetime.now() + timedelta(days=14)
     
-    # Сохраняем в базу
     subscriptions[secret_key] = {
         "api_key": api_key,
         "expires": expires,
@@ -307,8 +287,14 @@ def activate():
         "expires": expires.isoformat()
     })
 
-# ==================== ПОИСК ====================
+# ==================== MASTER КЛЮЧ ДЛЯ БОТА ====================
+MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
+
 def check_api_key(api_key):
+    # Мастер-ключ — всегда работает
+    if api_key == MASTER_KEY:
+        return True
+    
     if api_key in api_keys:
         secret_key = api_keys[api_key]
         if secret_key in subscriptions:
