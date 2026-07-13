@@ -12,8 +12,8 @@ app = Flask(__name__)
 CORS(app)
 
 # ==================== БАЗА ПОДПИСОК ====================
-# В реальном проекте использовать БД
-subscriptions = {}  # {secret_key: {"api_key": str, "expires": datetime, "created": datetime, "used": bool}}
+# В реальном проекте использовать БД (SQLite/PostgreSQL)
+subscriptions = {}  # {secret_key: {"api_key": str, "expires": datetime, "created": datetime}}
 api_keys = {}       # {api_key: secret_key}
 
 # ==================== HTML СТРАНИЦА АКТИВАЦИИ ====================
@@ -132,7 +132,7 @@ ACTIVATE_HTML = '''
         <div class="subtitle">Активация API ключа</div>
         
         <form id="activateForm">
-            <input type="text" id="secretKey" placeholder="Введите секретный ключ (начинается с deeptrek_)" required>
+            <input type="text" id="secretKey" placeholder="Введите секретный ключ" required>
             <button type="submit">🔑 Активировать</button>
         </form>
         
@@ -156,19 +156,6 @@ ACTIVATE_HTML = '''
                 return;
             }
             
-            if (!secretKey.startsWith('deeptrek_')) {
-                contentDiv.innerHTML = '<div class="error">❌ Неверный формат ключа. Ключ должен начинаться с "deeptrek_"</div>';
-                resultDiv.className = 'result show';
-                return;
-            }
-            
-            // Проверка длины ключа (от 35 до 39 символов)
-            if (secretKey.length < 35 || secretKey.length > 39) {
-                contentDiv.innerHTML = `<div class="error">❌ Неверная длина ключа. Допустимо от 35 до 39 символов. Текущая длина: ${secretKey.length}</div>`;
-                resultDiv.className = 'result show';
-                return;
-            }
-            
             resultDiv.className = 'result show';
             contentDiv.innerHTML = '⏳ Активация...';
             
@@ -184,12 +171,6 @@ ACTIVATE_HTML = '''
                 if (data.status === 'ok') {
                     const expires = new Date(data.expires);
                     const formattedExpires = expires.toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    });
-                    
-                    const reactivateDate = new Date(data.can_reactivate);
-                    const formattedReactive = reactivateDate.toLocaleString('ru-RU', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
                     });
@@ -219,17 +200,6 @@ ACTIVATE_HTML = '''
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
                                 </span>
-                            </div>
-                        </div>
-                        
-                        <div class="warning-box">
-                            <div class="title">⚠️ ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ</div>
-                            <div class="text">
-                                • Секретный ключ можно использовать <strong>ТОЛЬКО 1 РАЗ</strong><br>
-                                • Повторная активация возможна только через <strong>17 дней</strong> после первой активации<br>
-                                • Дата повторной активации: <strong>${formattedReactive}</strong><br>
-                                • Длина ключа: ${secretKey.length} символов (от 35 до 39)<br>
-                                • Если вы попытаетесь активировать ключ раньше — получите ошибку
                             </div>
                         </div>
                         
@@ -292,14 +262,6 @@ def activate():
     if not secret_key:
         return jsonify({"status": "error", "error": "Введите секретный ключ"})
     
-    # Проверка формата
-    if not secret_key.startswith('deeptrek_'):
-        return jsonify({"status": "error", "error": "Неверный формат ключа. Ключ должен начинаться с 'deeptrek_'"})
-    
-    # Проверка длины (от 35 до 39 символов)
-    if len(secret_key) < 35 or len(secret_key) > 39:
-        return jsonify({"status": "error", "error": f"Неверная длина ключа. Допустимо от 35 до 39 символов. Текущая длина: {len(secret_key)}"})
-    
     # Проверка, не использован ли уже этот ключ
     if secret_key in subscriptions:
         # Проверяем, прошло ли 17 дней
@@ -309,46 +271,40 @@ def activate():
             can_reactivate = created + timedelta(days=17)
             return jsonify({
                 "status": "error",
-                "error": f"Этот ключ уже использован. Повторная активация возможна через {17 - days_since} дней (с {can_reactivate.strftime('%Y-%m-%d %H:%M')})"
+                "error": f"Этот ключ уже использован. Повторная активация через {17 - days_since} дней (с {can_reactivate.strftime('%Y-%m-%d %H:%M')})"
             })
         else:
             # Если прошло 17+ дней — можно использовать снова
-            # Генерируем новый API-ключ
             api_key = f"deeptrek_{secrets.token_hex(16)}"
             expires = datetime.now() + timedelta(days=14)
             subscriptions[secret_key] = {
                 "api_key": api_key,
                 "expires": expires,
-                "created": datetime.now(),
-                "used": True
+                "created": datetime.now()
             }
             api_keys[api_key] = secret_key
-            
             return jsonify({
                 "status": "ok",
                 "api_key": api_key,
-                "expires": expires.isoformat(),
-                "can_reactivate": (datetime.now() + timedelta(days=17)).isoformat()
+                "expires": expires.isoformat()
             })
     
     # Генерируем новый API-ключ
     api_key = f"deeptrek_{secrets.token_hex(16)}"
-    
-    # Сохраняем в базу (14 дней)
     expires = datetime.now() + timedelta(days=14)
+    
+    # Сохраняем в базу
     subscriptions[secret_key] = {
         "api_key": api_key,
         "expires": expires,
-        "created": datetime.now(),
-        "used": True
+        "created": datetime.now()
     }
     api_keys[api_key] = secret_key
     
     return jsonify({
         "status": "ok",
         "api_key": api_key,
-        "expires": expires.isoformat(),
-        "can_reactivate": (datetime.now() + timedelta(days=17)).isoformat()
+        "expires": expires.isoformat()
     })
 
 # ==================== ПОИСК ====================
