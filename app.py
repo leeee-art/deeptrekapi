@@ -5,6 +5,7 @@ import json
 import re
 import csv
 import io
+import secrets
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -12,11 +13,10 @@ CORS(app)
 
 # ==================== БАЗА ПОДПИСОК ====================
 # В реальном проекте использовать БД
-subscriptions = {}
+subscriptions = {}  # {secret_key: {"api_key": str, "expires": datetime, "created": datetime, "used": bool}}
+api_keys = {}       # {api_key: secret_key}
 
-API_SECRET = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
-
-# ==================== HTML ДЛЯ АКТИВАЦИИ ====================
+# ==================== HTML СТРАНИЦА АКТИВАЦИИ ====================
 ACTIVATE_HTML = '''
 <!DOCTYPE html>
 <html>
@@ -37,7 +37,7 @@ ACTIVATE_HTML = '''
             padding: 20px;
         }
         .container {
-            max-width: 500px;
+            max-width: 600px;
             width: 100%;
             background: #151528;
             border-radius: 20px;
@@ -45,7 +45,7 @@ ACTIVATE_HTML = '''
             border: 1px solid #6c5ce7;
             box-shadow: 0 0 40px rgba(108, 92, 231, 0.15);
         }
-        .logo { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #6c5ce7, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 8px; }
+        .logo { font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #6c5ce7, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 4px; }
         .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 25px; }
         input {
             width: 100%;
@@ -57,6 +57,7 @@ ACTIVATE_HTML = '''
             font-size: 16px;
             outline: none;
             margin-bottom: 15px;
+            font-family: monospace;
         }
         input:focus { border-color: #6c5ce7; box-shadow: 0 0 20px rgba(108, 92, 231, 0.2); }
         button {
@@ -72,12 +73,57 @@ ACTIVATE_HTML = '''
             transition: 0.3s;
         }
         button:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(108, 92, 231, 0.3); }
-        .result { margin-top: 20px; padding: 15px; background: #0e0e20; border-radius: 12px; border: 1px solid #2a2a4a; display: none; }
+        .result { margin-top: 20px; padding: 20px; background: #0e0e20; border-radius: 12px; border: 1px solid #2a2a4a; display: none; }
         .result.show { display: block; }
         .success { color: #51cf66; }
         .error { color: #ff6b6b; }
+        .warning { color: #f1c40f; }
+        .key-box {
+            background: #0a0a18;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #a855f7;
+            word-break: break-all;
+            margin: 10px 0;
+            border: 1px solid #2a2a4a;
+        }
+        .code-box {
+            background: #0a0a18;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #c0c0c0;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid #2a2a4a;
+            white-space: pre-wrap;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 3px;
+        }
         .footer { text-align: center; color: #555; font-size: 12px; margin-top: 20px; }
-        .key { font-family: monospace; background: #0a0a18; padding: 8px; border-radius: 6px; word-break: break-all; color: #a855f7; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a3a; }
+        .info-label { color: #888; }
+        .info-value { color: #e0e0e0; font-weight: 600; }
+        .expires { color: #51cf66; }
+        .warning-box {
+            background: #1a1a2a;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #f1c40f;
+            margin: 10px 0;
+        }
+        .warning-box .title { color: #f1c40f; font-weight: 600; font-size: 13px; }
+        .warning-box .text { color: #c0c0c0; font-size: 12px; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -86,7 +132,7 @@ ACTIVATE_HTML = '''
         <div class="subtitle">Активация API ключа</div>
         
         <form id="activateForm">
-            <input type="text" id="secretKey" placeholder="Введите секретный ключ..." required>
+            <input type="text" id="secretKey" placeholder="Введите секретный ключ (начинается с deeptrek_)" required>
             <button type="submit">🔑 Активировать</button>
         </form>
         
@@ -110,6 +156,19 @@ ACTIVATE_HTML = '''
                 return;
             }
             
+            if (!secretKey.startsWith('deeptrek_')) {
+                contentDiv.innerHTML = '<div class="error">❌ Неверный формат ключа. Ключ должен начинаться с "deeptrek_"</div>';
+                resultDiv.className = 'result show';
+                return;
+            }
+            
+            // Проверка длины ключа (от 35 до 39 символов)
+            if (secretKey.length < 35 || secretKey.length > 39) {
+                contentDiv.innerHTML = `<div class="error">❌ Неверная длина ключа. Допустимо от 35 до 39 символов. Текущая длина: ${secretKey.length}</div>`;
+                resultDiv.className = 'result show';
+                return;
+            }
+            
             resultDiv.className = 'result show';
             contentDiv.innerHTML = '⏳ Активация...';
             
@@ -123,20 +182,76 @@ ACTIVATE_HTML = '''
                 const data = await response.json();
                 
                 if (data.status === 'ok') {
+                    const expires = new Date(data.expires);
+                    const formattedExpires = expires.toLocaleString('ru-RU', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                    
+                    const reactivateDate = new Date(data.can_reactivate);
+                    const formattedReactive = reactivateDate.toLocaleString('ru-RU', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+                    
                     contentDiv.innerHTML = `
-                        <div class="success">✅ API ключ активирован!</div>
-                        <br>
-                        <div><strong>🔑 API-ключ:</strong></div>
-                        <div class="key">${data.api_key}</div>
-                        <br>
-                        <div style="font-size:13px; color:#888;">
-                            Действует до: ${data.expires}<br>
-                            Лимит: безлимит
+                        <div class="success">✅ API ключ успешно активирован!</div>
+                        
+                        <div style="margin: 15px 0;">
+                            <div class="info-row">
+                                <span class="info-label">🔑 API-ключ</span>
+                                <span class="info-value" style="font-family:monospace; font-size:12px; color:#a855f7;">${data.api_key}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">📅 Действует до</span>
+                                <span class="info-value expires">${formattedExpires}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">📊 Лимит</span>
+                                <span class="info-value" style="color:#51cf66;">∞ Безлимит</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">📦 Источники</span>
+                                <span class="info-value">
+                                    <span class="badge">Atlas</span>
+                                    <span class="badge">BlackEye</span>
+                                    <span class="badge">Snusbase</span>
+                                    <span class="badge">IntelX</span>
+                                    <span class="badge">VK</span>
+                                </span>
+                            </div>
                         </div>
-                        <br>
-                        <div style="font-size:13px; color:#888;">
-                            <strong>Пример использования:</strong>
-                            <pre style="background:#0a0a18; padding:10px; border-radius:6px; font-size:11px; overflow-x:auto; margin-top:5px;">curl -X POST https://deeptrekapi.onrender.com/search \\<br>  -H "Content-Type: application/json" \\<br>  -H "X-API-Secret: ${data.api_key}" \\<br>  -d '{"query": "79123456789"}'</pre>
+                        
+                        <div class="warning-box">
+                            <div class="title">⚠️ ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ</div>
+                            <div class="text">
+                                • Секретный ключ можно использовать <strong>ТОЛЬКО 1 РАЗ</strong><br>
+                                • Повторная активация возможна только через <strong>17 дней</strong> после первой активации<br>
+                                • Дата повторной активации: <strong>${formattedReactive}</strong><br>
+                                • Длина ключа: ${secretKey.length} символов (от 35 до 39)<br>
+                                • Если вы попытаетесь активировать ключ раньше — получите ошибку
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 15px 0; padding: 12px; background: #1a1a3a; border-radius: 8px; border-left: 3px solid #a855f7;">
+                            <div style="color: #888; font-size: 13px; font-weight: 600; margin-bottom: 5px;">📌 Пример запроса</div>
+                            <div class="code-box">curl -X POST https://deeptrekapi.onrender.com/search \\<br>  -H "Content-Type: application/json" \\<br>  -H "X-API-Secret: ${data.api_key}" \\<br>  -d '{"query": "79123456789"}'</div>
+                        </div>
+                        
+                        <div style="margin: 15px 0; padding: 12px; background: #1a1a3a; border-radius: 8px; border-left: 3px solid #51cf66;">
+                            <div style="color: #888; font-size: 13px; font-weight: 600; margin-bottom: 5px;">📋 Поддерживаемые типы</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                                <span class="badge">Телефон — phone</span>
+                                <span class="badge">Email — email</span>
+                                <span class="badge">ФИО — fio</span>
+                                <span class="badge">ИНН — inn</span>
+                                <span class="badge">СНИЛС — snils</span>
+                                <span class="badge">Паспорт — passport</span>
+                                <span class="badge">Госномер — auto</span>
+                                <span class="badge">IP — ip</span>
+                                <span class="badge">Telegram — @username</span>
+                                <span class="badge">VK — id</span>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -177,35 +292,73 @@ def activate():
     if not secret_key:
         return jsonify({"status": "error", "error": "Введите секретный ключ"})
     
-    # Проверка секретного ключа (он должен быть в системе)
-    # Здесь нужно проверить по базе подписок
-    # Для примера: если ключ начинается с deeptrek_ и длина > 20
-    if not secret_key.startswith('deeptrek_') or len(secret_key) < 20:
-        return jsonify({"status": "error", "error": "Неверный секретный ключ"})
+    # Проверка формата
+    if not secret_key.startswith('deeptrek_'):
+        return jsonify({"status": "error", "error": "Неверный формат ключа. Ключ должен начинаться с 'deeptrek_'"})
     
-    # Генерируем API-ключ
-    import secrets
+    # Проверка длины (от 35 до 39 символов)
+    if len(secret_key) < 35 or len(secret_key) > 39:
+        return jsonify({"status": "error", "error": f"Неверная длина ключа. Допустимо от 35 до 39 символов. Текущая длина: {len(secret_key)}"})
+    
+    # Проверка, не использован ли уже этот ключ
+    if secret_key in subscriptions:
+        # Проверяем, прошло ли 17 дней
+        created = subscriptions[secret_key]["created"]
+        days_since = (datetime.now() - created).days
+        if days_since < 17:
+            can_reactivate = created + timedelta(days=17)
+            return jsonify({
+                "status": "error",
+                "error": f"Этот ключ уже использован. Повторная активация возможна через {17 - days_since} дней (с {can_reactivate.strftime('%Y-%m-%d %H:%M')})"
+            })
+        else:
+            # Если прошло 17+ дней — можно использовать снова
+            # Генерируем новый API-ключ
+            api_key = f"deeptrek_{secrets.token_hex(16)}"
+            expires = datetime.now() + timedelta(days=14)
+            subscriptions[secret_key] = {
+                "api_key": api_key,
+                "expires": expires,
+                "created": datetime.now(),
+                "used": True
+            }
+            api_keys[api_key] = secret_key
+            
+            return jsonify({
+                "status": "ok",
+                "api_key": api_key,
+                "expires": expires.isoformat(),
+                "can_reactivate": (datetime.now() + timedelta(days=17)).isoformat()
+            })
+    
+    # Генерируем новый API-ключ
     api_key = f"deeptrek_{secrets.token_hex(16)}"
     
-    # Сохраняем в базу
-    subscriptions[api_key] = {
-        "secret": secret_key,
-        "expires": (datetime.now() + timedelta(days=30)).isoformat(),
-        "created": datetime.now().isoformat()
+    # Сохраняем в базу (14 дней)
+    expires = datetime.now() + timedelta(days=14)
+    subscriptions[secret_key] = {
+        "api_key": api_key,
+        "expires": expires,
+        "created": datetime.now(),
+        "used": True
     }
+    api_keys[api_key] = secret_key
     
     return jsonify({
         "status": "ok",
         "api_key": api_key,
-        "expires": subscriptions[api_key]["expires"]
+        "expires": expires.isoformat(),
+        "can_reactivate": (datetime.now() + timedelta(days=17)).isoformat()
     })
 
-# ==================== ПОИСК С ПРОВЕРКОЙ API-КЛЮЧА ====================
+# ==================== ПОИСК ====================
 def check_api_key(api_key):
-    if api_key in subscriptions:
-        expires = datetime.fromisoformat(subscriptions[api_key]["expires"])
-        if datetime.now() < expires:
-            return True
+    if api_key in api_keys:
+        secret_key = api_keys[api_key]
+        if secret_key in subscriptions:
+            expires = subscriptions[secret_key]["expires"]
+            if datetime.now() < expires:
+                return True
     return False
 
 def detect_type(query):
