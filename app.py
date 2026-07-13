@@ -14,6 +14,9 @@ API_SECRET = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 ATLAS_TOKEN = "sub_1tme688x58j6v3s03jhc9nvh"
 ATLAS_URL = "https://atlas-in.cc/app"
 
+BLACKEYE_TOKEN = "y06BzECXTqtOjzdIcTVQPw"
+BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
+
 SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
@@ -43,7 +46,6 @@ def detect_type(query):
         return "telegram"
     if re.match(r'^\d+$', query):
         return "vk"
-    # Если ничего не подошло — считаем, что это ник или ФИО
     return "username"
 
 # ==================== ATLAS ====================
@@ -60,31 +62,34 @@ def search_atlas(query, search_type):
     except Exception as e:
         return {"source": "atlas", "error": str(e)}
 
-# ==================== SNUSBASE (ИСПРАВЛЕН) ====================
-def search_snusbase(query, search_type):
-    # Определяем тип для Snusbase
-    if search_type == "email":
-        snus_type = "email"
-    elif search_type in ["username", "fio"]:
-        snus_type = "username"
-    else:
-        snus_type = "username"
-    
-    payload = {
-        "terms": [query],
-        "types": [snus_type],
-        "wildcard": False
-    }
-    headers = {
-        "Auth": SNUSBASE_KEY,
-        "Content-Type": "application/json"
+# ==================== BLACKEYE ====================
+def search_blackeye(query, search_type):
+    data = {
+        "type": search_type,
+        "q": query,
+        "limit": 100
     }
     try:
+        r = requests.post(
+            BLACKEYE_URL,
+            headers={"Authorization": f"Bearer {BLACKEYE_TOKEN}", "Content-Type": "application/json"},
+            json=data,
+            timeout=30
+        )
+        return {"source": "blackeye", "data": r.json()} if r.status_code == 200 else {"source": "blackeye", "error": f"Код: {r.status_code}"}
+    except Exception as e:
+        return {"source": "blackeye", "error": str(e)}
+
+# ==================== SNUSBASE ====================
+def search_snusbase(query, search_type):
+    if not search_type:
+        search_type = "email" if re.search(r'@', query) else "username"
+    
+    payload = {"terms": [query], "types": [search_type], "wildcard": False}
+    headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
+    try:
         r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            return {"source": "snusbase", "data": r.json()}
-        else:
-            return {"source": "snusbase", "error": f"Код: {r.status_code}"}
+        return {"source": "snusbase", "data": r.json()} if r.status_code == 200 else {"source": "snusbase", "error": f"Код: {r.status_code}"}
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
@@ -93,7 +98,6 @@ def search_intelx(phone):
     phone = re.sub(r'\D', '', phone)
     if len(phone) < 8:
         return {"source": "intelx", "error": "Номер слишком короткий"}
-    
     url = f"https://data.intelx.io/saverudata/db2/dbpn/{phone[:2]}/{phone[2:4]}/{phone[4:6]}/{phone[6:8]}.csv"
     try:
         r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
@@ -159,18 +163,21 @@ def search():
         "sources": []
     }
     
-    # Atlas — всегда
+    # Atlas
     results["sources"].append(search_atlas(query, search_type))
     
-    # Snusbase — для email, username, fio
-    if search_type in ["email", "username", "fio"]:
+    # BlackEye
+    results["sources"].append(search_blackeye(query, search_type))
+    
+    # Snusbase — для email, username
+    if search_type in ["email", "username"]:
         results["sources"].append(search_snusbase(query, search_type))
     
-    # IntelX — только для телефона
+    # IntelX — для телефона
     if search_type == "phone":
         results["sources"].append(search_intelx(query))
     
-    # VK — для ID или короткого адреса
+    # VK
     if search_type == "vk" or re.match(r'^[a-zA-Z0-9_.]+$', query):
         results["sources"].append(search_vk(query))
     
@@ -186,12 +193,12 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "3.1",
+        "version": "4.0",
         "endpoints": {
             "/search": "POST - поиск (нужен X-API-Secret)",
             "/health": "GET - статус"
         },
-        "sources": ["Atlas", "Snusbase", "IntelX", "VK"]
+        "sources": ["Atlas", "BlackEye", "Snusbase", "IntelX", "VK"]
     })
 
 if __name__ == '__main__':
