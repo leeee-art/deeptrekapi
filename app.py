@@ -36,11 +36,15 @@ OMKAR_API_KEY = "ok_ad50fb80682eff950d34e7a9b3a77c8c"
 def detect_type(query):
     query = query.strip()
     
+    # ФИО — если есть русские буквы
+    if re.search(r'[а-яА-Я]', query):
+        return "fio"
+    
     # YouTube ссылка
     if re.search(r'(youtube\.com|youtu\.be)', query):
         return "youtube"
     
-    # TikTok пользователь
+    # TikTok
     if re.search(r'tiktok\.com/@', query):
         return "tiktok"
     
@@ -84,11 +88,6 @@ def detect_type(query):
     if re.match(r'^\d+$', query):
         return "vk"
     
-    # ФИО (русские буквы и пробелы)
-    if re.search(r'[а-яА-Я]', query) and re.search(r'\s', query):
-        return "fio"
-    
-    # По умолчанию — username
     return "username"
 
 # ==================== ПОИСК ====================
@@ -117,17 +116,17 @@ def search():
         "sources": []
     }
     
-    # === ATLAS (всегда) ===
+    # === ATLAS ===
     result["sources"].append(search_atlas(query, search_type))
     
-    # === BLACKEYE (всегда) ===
+    # === BLACKEYE ===
     result["sources"].append(search_blackeye(query, search_type))
     
-    # === SNUSBASE (email/username) ===
+    # === SNUSBASE ===
     if search_type in ["email", "username", "fio"]:
         result["sources"].append(search_snusbase(query, search_type))
     
-    # === INTELX (только телефон) ===
+    # === INTELX ===
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
     
@@ -143,27 +142,27 @@ def search():
     if search_type == "youtube":
         result["sources"].append(search_youtube(query))
     
-    # === VERIPHONE (телефон) ===
+    # === VERIPHONE ===
     if search_type == "phone":
         result["sources"].append(search_veriphone(query))
     
-    # === WHATSAPP (телефон) ===
+    # === WHATSAPP ===
     if search_type == "phone":
         result["sources"].append(search_whatsapp(query))
     
-    # === ODNOKLASSNIKI (телефон) ===
+    # === ODNOKLASSNIKI ===
     if search_type == "phone":
         result["sources"].append(search_odnoklassniki(query))
     
-    # === OMKAR PHONE (телефон) ===
+    # === OMKAR PHONE ===
     if search_type == "phone":
         result["sources"].append(search_omkar_phone(query))
     
-    # === OMKAR EMAIL (email) ===
+    # === OMKAR EMAIL ===
     if search_type == "email":
         result["sources"].append(search_omkar_email(query))
     
-    # === BIN CARD (если похоже на BIN) ===
+    # === BIN CARD ===
     if re.match(r'^\d{6,8}$', query):
         result["sources"].append(search_card_bin(query))
     
@@ -171,8 +170,8 @@ def search():
     if search_type == "inn":
         result["sources"].append(search_bank_by_inn(query))
     
-    # === WHOIS (домен) ===
-    if search_type == "username" and '.' in query:
+    # === WHOIS ===
+    if '.' in query and not re.search(r'[а-яА-Я]', query):
         result["sources"].append(search_whois(query))
         result["sources"].append(search_dns(query))
     
@@ -398,20 +397,45 @@ def search_card_bin(bin_number):
 
 def search_bank_by_inn(inn):
     banks = {
-        "7707083893": "Сбербанк", "7702070139": "ВТБ", "7710140679": "Т-Банк",
-        "7728168971": "Альфа-Банк", "7710030411": "ЮниКредит", "7744000302": "Райффайзенбанк",
-        "7744001497": "Газпромбанк", "7725114488": "Россельхозбанк", "7734203979": "Московский Кредитный Банк",
-        "7709202522": "Банк Открытие", "4401116480": "Совкомбанк", "7744000912": "Промсвязьбанк",
-        "7830000023": "Росбанк", "7706115350": "МТС-Банк", "7736255716": "Русский Стандарт",
-        "7727009645": "Почта Банк", "7728230191": "Озон Банк", "7702235133": "Центральный Банк РФ",
-        "7831000571": "Банк Санкт-Петербург", "7704010100": "Росгосстрах Банк", "7705426190": "Дойче Банк",
-        "7744001678": "Новикомбанк", "7710383406": "Экспобанк", "7725161778": "ФК Открытие",
-        "7704037971": "Абсолют Банк", "7704120582": "Транскапиталбанк", "7708023639": "Номос-Банк",
-        "7723013520": "Российский Капитал", "7811322120": "Балтийский Банк", "7728073774": "Связь-Банк",
-        "7708010008": "Банк Зенит", "7717019510": "Кредит Европа Банк", "7707309927": "Уралсиб",
-        "7804000073": "Банк Санкт-Петербург", "7724008957": "Интерпромбанк", "7730161008": "Московский Индустриальный Банк",
-        "7728020682": "Банк ДОМ.РФ", "7715015200": "Хоум Кредит Банк", "7711000001": "Сбербанк (спецказначейский)",
-        "7710031876": "Банк Синара", "7707083893": "Сбербанк России"
+        "7707083893": "Сбербанк",
+        "7702070139": "ВТБ",
+        "7710140679": "Т-Банк",
+        "7728168971": "Альфа-Банк",
+        "7710030411": "ЮниКредит",
+        "7744000302": "Райффайзенбанк",
+        "7744001497": "Газпромбанк",
+        "7725114488": "Россельхозбанк",
+        "7734203979": "Московский Кредитный Банк",
+        "7709202522": "Банк Открытие",
+        "4401116480": "Совкомбанк",
+        "7744000912": "Промсвязьбанк",
+        "7830000023": "Росбанк",
+        "7706115350": "МТС-Банк",
+        "7736255716": "Русский Стандарт",
+        "7727009645": "Почта Банк",
+        "7728230191": "Озон Банк",
+        "7702235133": "Центральный Банк РФ",
+        "7831000571": "Банк Санкт-Петербург",
+        "7704010100": "Росгосстрах Банк",
+        "7705426190": "Дойче Банк",
+        "7744001678": "Новикомбанк",
+        "7710383406": "Экспобанк",
+        "7725161778": "ФК Открытие",
+        "7704037971": "Абсолют Банк",
+        "7704120582": "Транскапиталбанк",
+        "7708023639": "Номос-Банк",
+        "7723013520": "Российский Капитал",
+        "7811322120": "Балтийский Банк",
+        "7728073774": "Связь-Банк",
+        "7708010008": "Банк Зенит",
+        "7717019510": "Кредит Европа Банк",
+        "7707309927": "Уралсиб",
+        "7804000073": "Банк Санкт-Петербург",
+        "7724008957": "Интерпромбанк",
+        "7730161008": "Московский Индустриальный Банк",
+        "7728020682": "Банк ДОМ.РФ",
+        "7715015200": "Хоум Кредит Банк",
+        "7710031876": "Банк Синара"
     }
     return {"source": "bank", "data": {"inn": inn, "bank": banks.get(inn, "Банк не найден")}}
 
