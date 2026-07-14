@@ -6,10 +6,29 @@ import re
 import csv
 import io
 import secrets
+import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
+
+# ==================== КОНФИГ ====================
+ATLAS_TOKEN = os.getenv('ATLAS_TOKEN', "sub_1tme688x58j6v3s03jhc9nvh")
+ATLAS_URL = "https://atlas-in.cc/app"
+
+BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "")
+BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
+
+SNUSBASE_KEY = os.getenv('SNUSBASE_KEY', "sbmeovhou6ecsn9fd9wcwnwwvsvwnc")
+SNUSBASE_URL = "https://api.snusbase.com/data/search"
+
+VK_TOKEN = os.getenv('VK_TOKEN', "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c")
+VK_API = "https://api.vk.com/method/users.get"
+
+OFDATA_KEY = os.getenv('OFDATA_KEY', "KBnpz1CHKNngFXxK")
+OFDATA_URL = "https://api.ofdata.ru/v2/search"
+
+MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
 
 # ==================== БАЗА ПОДПИСОК ====================
 subscriptions = {}
@@ -194,10 +213,10 @@ ACTIVATE_HTML = '''
                                 <span class="info-label">📦 Источники</span>
                                 <span class="info-value">
                                     <span class="badge">Atlas</span>
-                                    <span class="badge">BlackEye</span>
                                     <span class="badge">Snusbase</span>
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
+                                    <span class="badge">OFDATA</span>
                                 </span>
                             </div>
                         </div>
@@ -220,6 +239,8 @@ ACTIVATE_HTML = '''
                                 <span class="badge">IP — ip</span>
                                 <span class="badge">Telegram — @username</span>
                                 <span class="badge">VK — id</span>
+                                <span class="badge">ОГРН — ogrn</span>
+                                <span class="badge">Компания — company</span>
                             </div>
                         </div>
                     `;
@@ -234,19 +255,6 @@ ACTIVATE_HTML = '''
 </body>
 </html>
 '''
-
-# ==================== ТОКЕНЫ ====================
-ATLAS_TOKEN = "sub_1tme688x58j6v3s03jhc9nvh"
-ATLAS_URL = "https://atlas-in.cc/app"
-
-BLACKEYE_TOKEN = "y06BzECXTqtOjzdIcTVQPw"
-BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
-
-SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
-SNUSBASE_URL = "https://api.snusbase.com/data/search"
-
-VK_TOKEN = "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c"
-VK_API = "https://api.vk.com/method/users.get"
 
 # ==================== АКТИВАЦИЯ ====================
 @app.route('/activate')
@@ -287,14 +295,10 @@ def activate():
         "expires": expires.isoformat()
     })
 
-# ==================== MASTER КЛЮЧ ДЛЯ БОТА ====================
-MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
-
+# ==================== MASTER КЛЮЧ ====================
 def check_api_key(api_key):
-    # Мастер-ключ — всегда работает
     if api_key == MASTER_KEY:
         return True
-    
     if api_key in api_keys:
         secret_key = api_keys[api_key]
         if secret_key in subscriptions:
@@ -305,26 +309,54 @@ def check_api_key(api_key):
 
 def detect_type(query):
     query = query.strip()
-    if re.match(r'^\d+$', query):
-        return "vk"
-    if re.match(r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$', query, re.IGNORECASE):
-        return "auto"
-    if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', query):
-        return "ip"
-    if query.startswith('@'):
-        return "telegram"
-    if re.search(r'[а-яА-Я]', query) and re.search(r'\s', query):
-        return "fio"
-    if re.search(r'@', query):
-        return "email"
-    if re.match(r'^[78]\d{10}$', re.sub(r'\D', '', query)):
-        return "phone"
+    
+    # ОГРН/ОГРНИП (13 или 15 цифр)
+    if re.match(r'^\d{13}$|^\d{15}$', query):
+        return "ogrn"
+    
+    # ИНН (10 или 12 цифр)
     if re.match(r'^\d{10}$|^\d{12}$', query):
         return "inn"
+    
+    # СНИЛС (11 цифр с пробелами или без)
     if re.match(r'^\d{11}$', re.sub(r'\D', '', query)):
         return "snils"
+    
+    # Телефон
+    if re.match(r'^[78]\d{10}$', re.sub(r'\D', '', query)):
+        return "phone"
+    
+    # Email
+    if re.search(r'@', query):
+        return "email"
+    
+    # IP-адрес
+    if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', query):
+        return "ip"
+    
+    # VK ID (число)
+    if re.match(r'^\d+$', query):
+        return "vk"
+    
+    # Telegram
+    if query.startswith('@'):
+        return "telegram"
+    
+    # Госномер
+    if re.match(r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$', query, re.IGNORECASE):
+        return "auto"
+    
+    # Паспорт
     if re.match(r'^\d{4}\s?\d{6}$', query) or re.match(r'^\d{10}$', query):
         return "passport"
+    
+    # Если есть буквы и пробелы — ФИО или компания
+    if re.search(r'[а-яА-Я]', query):
+        if len(query.split()) >= 2:
+            return "fio"
+        else:
+            return "company"
+    
     return "fio"
 
 # ==================== ПАРСЕРЫ ====================
@@ -342,22 +374,23 @@ def search_atlas(query, search_type):
         return {"source": "atlas", "error": str(e)}
 
 def search_blackeye(query, search_type):
-    data = {"type": search_type, "q": query, "limit": 100}
-    try:
-        r = requests.post(
-            BLACKEYE_URL,
-            headers={"Authorization": f"Bearer {BLACKEYE_TOKEN}", "Content-Type": "application/json"},
-            json=data,
-            timeout=30
-        )
-        return {"source": "blackeye", "data": r.json()} if r.status_code == 200 else {"source": "blackeye", "error": f"Код: {r.status_code}"}
-    except Exception as e:
-        return {"source": "blackeye", "error": str(e)}
+    # Временно отключено
+    return {"source": "blackeye", "error": "Временно недоступен"}
 
 def search_snusbase(query, search_type):
-    if not search_type:
-        search_type = "email" if re.search(r'@', query) else "username"
-    payload = {"terms": [query], "types": [search_type], "wildcard": False}
+    # Snusbase поддерживает: email, username, fio, ip
+    if search_type not in ["email", "fio", "ip"]:
+        return {"source": "snusbase", "error": "Snusbase не поддерживает этот тип"}
+    
+    # Для IP используем "ip" тип
+    if search_type == "ip":
+        snus_type = "ip"
+    elif search_type == "fio":
+        snus_type = "username"  # или "fio" — пробуй оба
+    else:
+        snus_type = search_type
+    
+    payload = {"terms": [query], "types": [snus_type], "wildcard": False}
     headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
     try:
         r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30)
@@ -407,6 +440,39 @@ def search_vk(query):
     except Exception as e:
         return {"source": "vk", "error": str(e)}
 
+def search_ofdata(query, search_type):
+    """
+    Поиск по OFDATA (гос. реестры)
+    Поддерживает: inn, ogrn, fio, company
+    """
+    if search_type not in ["inn", "ogrn", "fio", "company"]:
+        return {"source": "ofdata", "error": "OFDATA не поддерживает этот тип"}
+    
+    if search_type in ["inn", "ogrn"]:
+        by = search_type
+        obj = "org"
+    elif search_type == "fio":
+        by = "name"
+        obj = "ent"
+    else:  # company
+        by = "name"
+        obj = "org"
+    
+    url = f"{OFDATA_URL}?key={OFDATA_KEY}&by={by}&obj={obj}&query={query}&limit=10"
+    
+    try:
+        r = requests.get(url, timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("data", {}).get("Записи"):
+                return {"source": "ofdata", "data": data}
+            else:
+                return {"source": "ofdata", "error": "Ничего не найдено"}
+        else:
+            return {"source": "ofdata", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "ofdata", "error": str(e)}
+
 # ==================== ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
@@ -434,15 +500,35 @@ def search():
         "sources": []
     }
     
+    # Атлас — почти всё
     result["sources"].append(search_atlas(query, search_type))
-    #result["sources"].append(search_blackeye(query, search_type))
     
-    if search_type in ["email", "username", "fio"]:
+    # BlackEye временно отключён
+    # result["sources"].append(search_blackeye(query, search_type))
+    
+    # Snusbase — email, fio, ip
+    if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
+    
+    # IntelX — только телефоны
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
+    
+    # VK — числа (ID)
     if search_type == "vk":
         result["sources"].append(search_vk(query))
+    
+    # OFDATA — ИНН, ОГРН, ФИО, компании
+    if search_type in ["inn", "ogrn", "fio", "company"]:
+        result["sources"].append(search_ofdata(query, search_type))
+    
+    # Telegram — через Атлас
+    if search_type == "telegram":
+        result["sources"].append(search_atlas(query, search_type))
+    
+    # Авто — через Атлас
+    if search_type == "auto":
+        result["sources"].append(search_atlas(query, search_type))
     
     return jsonify(result)
 
@@ -456,13 +542,13 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "6.0",
+        "version": "7.0",
         "endpoints": {
             "/search": "POST - поиск (нужен X-API-Secret)",
             "/activate": "GET - страница активации API",
             "/health": "GET - статус"
         },
-        "sources": ["Atlas", "BlackEye", "Snusbase", "IntelX", "VK"]
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA"]
     })
 
 if __name__ == '__main__':
