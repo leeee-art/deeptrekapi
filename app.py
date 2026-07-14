@@ -435,7 +435,7 @@ def search():
     }
     
     result["sources"].append(search_atlas(query, search_type))
-    result["sources"].append(search_blackeye(query, search_type))
+    #result["sources"].append(search_blackeye(query, search_type))
     
     if search_type in ["email", "username", "fio"]:
         result["sources"].append(search_snusbase(query, search_type))
