@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+DeepTrek API v8.0
+OSINT-агрегатор для поиска по открытым источникам
+
+Ссылка: https://deeptrekapi.onrender.com
+Автор: @kmyfg
+"""
+
 from flask import Flask, request, jsonify, render_template_string, send_file
 from flask_cors import CORS
 import requests
@@ -12,29 +21,46 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 CORS(app)
 
+# ==================== КОНФИГУРАЦИЯ ====================
+# Все ключи вынесены в переменные окружения для безопасности
+# Если переменная не задана, используется значение по умолчанию
+
+# Атлас — основной источник (ФИО, телефон, email, авто, ИНН, СНИЛС, паспорт, IP)
 ATLAS_TOKEN = os.getenv('ATLAS_TOKEN', "sub_1tme688x58j6v3s03jhc9nvh")
 ATLAS_URL = "https://atlas-in.cc/app"
 
+# BlackEye — временно отключён
 BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "")
 BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
 
+# Snusbase — базы утечек (email, username, IP)
 SNUSBASE_KEY = os.getenv('SNUSBASE_KEY', "sbmeovhou6ecsn9fd9wcwnwwvsvwnc")
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
+# VK API — поиск по ID
 VK_TOKEN = os.getenv('VK_TOKEN', "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c")
 VK_API = "https://api.vk.com/method/users.get"
 
+# OFDATA — государственные реестры (ИНН, ОГРН, ФИО, компании)
 OFDATA_KEY = os.getenv('OFDATA_KEY', "KBnpz1CHKNngFXxK")
 OFDATA_URL = "https://api.ofdata.ru/v2/search"
 
+# Мастер-ключ для бота
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
+
+# Пароль для активации софта (выдаётся вручную через @kmyfg)
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
+# RaidfindSoft — бесплатный, но слабый источник
 RAIDFIND_URL = "http://204.12.227.173:6414/search"
 
+# ==================== ХРАНИЛИЩЕ ====================
+# subscriptions: {secret_key: {"api_key": str, "expires": datetime, "created": datetime, "type": str}}
+# api_keys: {api_key: secret_key}
 subscriptions = {}
 api_keys = {}
 
+# ==================== HTML-СТРАНИЦЫ ====================
 ACTIVATE_HTML = '''
 <!DOCTYPE html>
 <html>
@@ -390,6 +416,10 @@ SOFT_SCRIPT = '''
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+DeepTrek Soft — клиент для терминального поиска
+"""
+
 import requests
 import json
 import os
@@ -409,6 +439,7 @@ YELLOW = "\\033[93m"
 CYAN = "\\033[96m"
 WHITE = "\\033[97m"
 MAGENTA = "\\033[95m"
+DIM = "\\033[2m"
 
 def clear():
     os.system("cls" if os.name == "nt" else "clear")
@@ -425,7 +456,7 @@ def center(text):
     result = []
     for line in lines:
         clean = line
-        for code in [RESET, BOLD, RED, GREEN, YELLOW, CYAN, WHITE, MAGENTA]:
+        for code in [RESET, BOLD, RED, GREEN, YELLOW, CYAN, WHITE, MAGENTA, DIM]:
             clean = clean.replace(code, '')
         pad = max(0, (width - len(clean)) // 2)
         result.append(" " * pad + line)
@@ -442,7 +473,7 @@ def print_banner():
     """
     print(center(banner))
     print(center("🔍 OSINT-клиент для DeepTrek API"))
-    print(center("📌 Версия 1.0"))
+    print(center("📌 Версия 2.0"))
     print(center("🌐 " + BASE_URL))
     print()
 
@@ -503,22 +534,90 @@ def print_result(data):
         return
     
     result = data.get("data", {})
+    
     print(f"\\n{GREEN}✅ Найдено!{RESET}")
     print(f"{CYAN}📱 Запрос: {result.get('query', '')}{RESET}")
     print(f"{CYAN}📅 Время: {result.get('timestamp', '')[:16]}{RESET}")
     print(f"{CYAN}📊 Тип: {result.get('type', '')}{RESET}")
-    print(f"{CYAN}📦 Источников: {len(result.get('sources', []))}{RESET}")
     print()
     
     for source in result.get('sources', []):
         if 'error' in source:
             print(f"{RED}❌ {source.get('source', '').upper()}: {source.get('error', 'Ошибка')}{RESET}")
-        else:
-            print(f"{GREEN}✅ {source.get('source', '').upper()}: данные найдены{RESET}")
+            continue
+        
+        src_name = source.get('source', '').upper()
+        print(f"{GREEN}✅ {src_name}{RESET}")
+        
+        if src_name == "ATLAS":
+            data = source.get('data', {})
+            fast = data.get('fast_result', {})
+            sources = data.get('result', {}).get('sources', {})
+            bases = sources.get('Базы Данных', [])
+            
+            if fast:
+                print(f"  {YELLOW}📌 Быстрый результат:{RESET}")
+                if fast.get('fullname'):
+                    print(f"    {WHITE}ФИО:{RESET} {', '.join([x[0] for x in fast['fullname'][:5]])}")
+                if fast.get('birthday'):
+                    print(f"    {WHITE}Даты рождения:{RESET} {', '.join([x[0] for x in fast['birthday'][:3]])}")
+                if fast.get('email'):
+                    print(f"    {WHITE}Email:{RESET} {', '.join([x[0] for x in fast['email'][:3]])}")
+                if fast.get('phone'):
+                    print(f"    {WHITE}Телефоны:{RESET} {', '.join([x[0] for x in fast['phone'][:3]])}")
+                if fast.get('region'):
+                    print(f"    {WHITE}Регионы:{RESET} {', '.join([x[0][:50] for x in fast['region'][:2]])}")
+            
+            if bases:
+                print(f"  {MAGENTA}📂 Базы данных ({len(bases)} записей):{RESET}")
+                for i, entry in enumerate(bases[:5], 1):
+                    print(f"    {DIM}{i}.{RESET}")
+                    for key, value in entry.items():
+                        if key in ['source', 'phone', 'fio', 'email', 'address', 'bdate', 'inn', 'passport']:
+                            print(f"      {WHITE}{key}:{RESET} {value}")
+                    print()
+        
+        elif src_name == "INTELX":
+            data = source.get('data', [])
+            if data:
+                print(f"  {MAGENTA}📂 IntelX данные ({len(data)} записей):{RESET}")
+                for entry in data[:3]:
+                    print(f"    {entry}")
+        
+        elif src_name == "OFDATA":
+            data = source.get('data', {})
+            if data.get('data', {}).get('Записи'):
+                entries = data['data']['Записи']
+                print(f"  {MAGENTA}📂 OFDATA ({len(entries)} записей):{RESET}")
+                for entry in entries[:3]:
+                    if 'НаимСокр' in entry:
+                        print(f"    {WHITE}Компания:{RESET} {entry.get('НаимСокр', '')}")
+                    if 'ФИО' in entry:
+                        print(f"    {WHITE}ФИО:{RESET} {entry.get('ФИО', '')}")
+                    if 'ИНН' in entry:
+                        print(f"    {WHITE}ИНН:{RESET} {entry.get('ИНН', '')}")
+                    print()
+        
+        elif src_name == "SNUSBASE":
+            data = source.get('data', {})
+            if data.get('results'):
+                print(f"  {MAGENTA}📂 Snusbase данные:{RESET}")
+                for entry in data['results'][:3]:
+                    print(f"    {entry}")
+        
+        elif src_name == "VK":
+            data = source.get('data', [])
+            if data:
+                print(f"  {MAGENTA}📂 VK данные:{RESET}")
+                for entry in data:
+                    if 'first_name' in entry:
+                        print(f"    {WHITE}Имя:{RESET} {entry.get('first_name', '')} {entry.get('last_name', '')}")
+                        print(f"    {WHITE}Статус:{RESET} {entry.get('status', '')}")
+                        print(f"    {WHITE}Страна:{RESET} {entry.get('country', {}).get('title', '')}")
     
     print()
-    print(center(f"{YELLOW}Сырые данные:{RESET}"))
-    print(center(json.dumps(result, ensure_ascii=False, indent=2)[:1000]))
+    print(center(f"{YELLOW}📄 Полный JSON:{RESET}"))
+    print(center(json.dumps(result, ensure_ascii=False, indent=2)[:2000]))
 
 def main():
     clear()
@@ -531,9 +630,10 @@ def main():
     
     while True:
         print()
-        print(center(f"{GREEN}┌────────────────────────────────────┐{RESET}"))
-        print(center(f"{GREEN}│  {WHITE}Введите запрос или 'exit' для выхода  {GREEN}│{RESET}"))
-        print(center(f"{GREEN}└────────────────────────────────────┘{RESET}"))
+        print(center(f"{GREEN}┌────────────────────────────────────────────────────┐{RESET}"))
+        print(center(f"{GREEN}│  {WHITE}Введите запрос или 'exit' для выхода                   {GREEN}│{RESET}"))
+        print(center(f"{GREEN}│  {DIM}help - справка по типам запросов                     {GREEN}│{RESET}"))
+        print(center(f"{GREEN}└────────────────────────────────────────────────────┘{RESET}"))
         print()
         
         query = input(center(f"{CYAN}🔍 > {RESET}")).strip()
@@ -567,20 +667,109 @@ if __name__ == "__main__":
         sys.exit(0)
 '''
 
+# ==================== ЭНДПОИНТЫ ====================
+
+@app.route('/')
+def index():
+    """Главная страница API"""
+    return jsonify({
+        "name": "DeepTrek API",
+        "version": "8.0",
+        "description": "OSINT-агрегатор для поиска по открытым источникам",
+        "author": "@kmyfg",
+        "endpoints": {
+            "/search": {
+                "method": "POST",
+                "description": "Поиск по запросу",
+                "headers": {"X-API-Secret": "Ваш API-ключ"},
+                "body": {"query": "строка запроса", "type": "тип (опционально)"},
+                "example": 'curl -X POST https://deeptrekapi.onrender.com/search -H "X-API-Secret: KEY" -d \'{"query": "+79123456789"}\''
+            },
+            "/activate": {
+                "method": "GET",
+                "description": "Страница активации API-ключа"
+            },
+            "/api/activate": {
+                "method": "POST",
+                "description": "Активация API-ключа по секретному ключу",
+                "body": {"secret_key": "секретный ключ"}
+            },
+            "/soft": {
+                "method": "GET",
+                "description": "Страница с софтом для скачивания"
+            },
+            "/download/soft.py": {
+                "method": "GET",
+                "description": "Скачать скрипт для терминального поиска"
+            },
+            "/health": {
+                "method": "GET",
+                "description": "Проверка статуса сервера"
+            }
+        },
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Raidfind"],
+        "supported_types": {
+            "phone": "Номер телефона (79123456789)",
+            "email": "Email (user@mail.ru)",
+            "fio": "ФИО (Иванов Иван)",
+            "auto": "Госномер (А123ВС77)",
+            "inn": "ИНН (7712345678)",
+            "ogrn": "ОГРН (1027700132195)",
+            "snils": "СНИЛС (12345678900)",
+            "passport": "Паспорт (1234 567890)",
+            "ip": "IP-адрес (8.8.8.8)",
+            "telegram": "Telegram (@username)",
+            "vk": "VK ID (123456)",
+            "company": "Название компании (ООО Ромашка)"
+        }
+    })
+
 @app.route('/activate')
 def activate_page():
+    """Страница активации API-ключа"""
     return render_template_string(ACTIVATE_HTML)
 
 @app.route('/soft')
 def soft_page():
+    """Страница с софтом"""
     return render_template_string(SOFT_PAGE)
 
 @app.route('/download/soft.py')
 def download_soft():
+    """Скачать скрипт софта"""
     return SOFT_SCRIPT, 200, {'Content-Type': 'text/x-python', 'Content-Disposition': 'attachment; filename=soft.py'}
 
 @app.route('/api/activate', methods=['POST'])
 def activate():
+    """
+    Активация API-ключа
+    ---
+    tags:
+      - Активация
+    parameters:
+      - name: secret_key
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            secret_key:
+              type: string
+    responses:
+      200:
+        description: Успешная активация
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+            api_key:
+              type: string
+            expires:
+              type: string
+            type:
+              type: string
+    """
     data = request.get_json()
     secret_key = data.get('secret_key', '').strip()
     
@@ -635,6 +824,7 @@ def activate():
     })
 
 def check_api_key(api_key):
+    """Проверка валидности API-ключа"""
     if api_key == MASTER_KEY:
         return True
     if not api_key.startswith("deeptrek_"):
@@ -648,7 +838,9 @@ def check_api_key(api_key):
     return False
 
 def detect_type(query):
+    """Автоопределение типа запроса"""
     query = query.strip()
+    
     if re.match(r'^\d{4}\s?\d{6}$', query):
         return "passport"
     if query.startswith('@'):
@@ -676,7 +868,10 @@ def detect_type(query):
             return "company"
     return "username"
 
+# ==================== ПАРСЕРЫ ИСТОЧНИКОВ ====================
+
 def search_atlas(query, search_type):
+    """Поиск через Атлас — основной источник"""
     params = {
         "token": ATLAS_TOKEN,
         "type": search_type,
@@ -689,10 +884,8 @@ def search_atlas(query, search_type):
     except Exception as e:
         return {"source": "atlas", "error": str(e)}
 
-def search_blackeye(query, search_type):
-    return {"source": "blackeye", "error": "Временно недоступен"}
-
 def search_snusbase(query, search_type):
+    """Поиск через Snusbase — базы утечек"""
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Snusbase не поддерживает этот тип"}
     snus_type = "ip" if search_type == "ip" else search_type
@@ -707,6 +900,7 @@ def search_snusbase(query, search_type):
         return {"source": "snusbase", "error": str(e)}
 
 def search_intelx(phone):
+    """Поиск через IntelX — открытые CSV-базы по номерам телефонов"""
     phone = re.sub(r'\D', '', phone)
     if len(phone) < 8:
         return {"source": "intelx", "error": "Номер слишком короткий"}
@@ -732,6 +926,7 @@ def search_intelx(phone):
         return {"source": "intelx", "error": str(e)}
 
 def search_vk(query):
+    """Поиск через VK API по ID"""
     params = {
         "access_token": VK_TOKEN,
         "v": "5.131",
@@ -749,6 +944,7 @@ def search_vk(query):
         return {"source": "vk", "error": str(e)}
 
 def search_ofdata(query, search_type):
+    """Поиск через OFDATA — государственные реестры"""
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "OFDATA не поддерживает этот тип"}
     if search_type in ["inn", "ogrn"]:
@@ -775,6 +971,7 @@ def search_ofdata(query, search_type):
         return {"source": "ofdata", "error": str(e)}
 
 def search_raidfind(query, search_type):
+    """Поиск через RaidfindSoft — бесплатный, но слабый источник"""
     type_map = {
         "phone": "phone",
         "email": "email",
@@ -803,59 +1000,108 @@ def search_raidfind(query, search_type):
     except Exception as e:
         return {"source": "raidfind", "error": str(e)}
 
+# ==================== ОСНОВНОЙ ЭНДПОИНТ ====================
+
 @app.route('/search', methods=['POST'])
 def search():
+    """
+    Поиск по открытым источникам
+    ---
+    tags:
+      - Поиск
+    parameters:
+      - name: X-API-Secret
+        in: header
+        required: true
+        type: string
+      - name: query
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            query:
+              type: string
+            type:
+              type: string
+    responses:
+      200:
+        description: Результат поиска
+        schema:
+          type: object
+          properties:
+            query:
+              type: string
+            type:
+              type: string
+            timestamp:
+              type: string
+            sources:
+              type: array
+    """
     api_key = request.headers.get('X-API-Secret')
     if not check_api_key(api_key):
         return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
+    
     data = request.get_json()
     if not data:
         return jsonify({"error": "Нет данных"}), 400
+    
     query = data.get('query', '').strip()
     if not query:
         return jsonify({"error": "Пустой запрос"}), 400
+    
     search_type = data.get('type')
     if not search_type:
         search_type = detect_type(query)
+    
     result = {
         "query": query,
         "type": search_type,
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
+    
+    # Атлас — почти всё
     result["sources"].append(search_atlas(query, search_type))
+    
+    # Snusbase — email, fio, ip
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
+    
+    # IntelX — только телефоны
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
+    
+    # VK — числа (ID)
     if search_type == "vk":
         result["sources"].append(search_vk(query))
+    
+    # OFDATA — ИНН, ОГРН, ФИО, компании
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
+    
+    # Telegram — через Атлас
     if search_type == "telegram":
         result["sources"].append(search_atlas(query, search_type))
+    
+    # Авто — через Атлас
     if search_type == "auto":
         result["sources"].append(search_atlas(query, search_type))
+    
+    # Raidfind — телефон, email, ФИО, VK
     if search_type in ["phone", "email", "fio", "vk"]:
         result["sources"].append(search_raidfind(query, search_type))
+    
     return jsonify(result)
 
 @app.route('/health')
 def health():
-    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
-
-@app.route('/')
-def index():
+    """Проверка статуса сервера"""
     return jsonify({
-        "name": "DeepTrek API",
-        "version": "8.0",
-        "endpoints": {
-            "/search": "POST - поиск (нужен X-API-Secret)",
-            "/activate": "GET - страница активации API",
-            "/soft": "GET - страница софта",
-            "/health": "GET - статус"
-        },
-        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Raidfind"]
+        "status": "ok",
+        "time": datetime.now().isoformat(),
+        "version": "8.0"
     })
 
 if __name__ == '__main__':
