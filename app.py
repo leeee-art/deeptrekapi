@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_file
 from flask_cors import CORS
 import requests
 import json
@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 CORS(app)
 
-# ==================== КОНФИГ ====================
 ATLAS_TOKEN = os.getenv('ATLAS_TOKEN', "sub_1tme688x58j6v3s03jhc9nvh")
 ATLAS_URL = "https://atlas-in.cc/app"
 
@@ -29,12 +28,13 @@ OFDATA_KEY = os.getenv('OFDATA_KEY', "KBnpz1CHKNngFXxK")
 OFDATA_URL = "https://api.ofdata.ru/v2/search"
 
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
+SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
-# ==================== БАЗА ПОДПИСОК ====================
+RAIDFIND_URL = "http://204.12.227.173:6414/search"
+
 subscriptions = {}
 api_keys = {}
 
-# ==================== HTML СТРАНИЦА АКТИВАЦИИ ====================
 ACTIVATE_HTML = '''
 <!DOCTYPE html>
 <html>
@@ -149,6 +149,13 @@ ACTIVATE_HTML = '''
         <div class="logo">🔍 DeepTrek</div>
         <div class="subtitle">Активация API ключа</div>
         
+        <div class="warning-box">
+            <div class="title">💻 Для получения пароля</div>
+            <div class="text">
+                Напишите <a href="https://t.me/kmyfg" style="color:#a855f7;">@kmyfg</a>
+            </div>
+        </div>
+        
         <form id="activateForm">
             <input type="text" id="secretKey" placeholder="Введите секретный ключ..." required>
             <button type="submit">🔑 Активировать</button>
@@ -193,6 +200,13 @@ ACTIVATE_HTML = '''
                         hour: '2-digit', minute: '2-digit'
                     });
                     
+                    let typeText = '';
+                    if (data.type === 'software') {
+                        typeText = '<span class="badge" style="background:rgba(81, 207, 102, 0.2);color:#51cf66;">💻 Софт</span>';
+                    } else {
+                        typeText = '<span class="badge" style="background:rgba(108, 92, 231, 0.2);color:#6c5ce7;">👤 Пользователь</span>';
+                    }
+                    
                     contentDiv.innerHTML = `
                         <div class="success">✅ API ключ успешно активирован!</div>
                         
@@ -206,8 +220,8 @@ ACTIVATE_HTML = '''
                                 <span class="info-value expires">${formattedExpires}</span>
                             </div>
                             <div class="info-row">
-                                <span class="info-label">📊 Лимит</span>
-                                <span class="info-value" style="color:#51cf66;">∞ Безлимит</span>
+                                <span class="info-label">📊 Тип</span>
+                                <span class="info-value">${typeText}</span>
                             </div>
                             <div class="info-row">
                                 <span class="info-label">📦 Источники</span>
@@ -217,6 +231,7 @@ ACTIVATE_HTML = '''
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
                                     <span class="badge">OFDATA</span>
+                                    <span class="badge">Raidfind</span>
                                 </span>
                             </div>
                         </div>
@@ -256,10 +271,313 @@ ACTIVATE_HTML = '''
 </html>
 '''
 
-# ==================== АКТИВАЦИЯ ====================
+SOFT_PAGE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepTrek — Софт</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0b0b1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: #151528;
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid #6c5ce7;
+            box-shadow: 0 0 40px rgba(108, 92, 231, 0.15);
+        }
+        .logo { font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #6c5ce7, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 25px; }
+        .code-box {
+            background: #0a0a18;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #c0c0c0;
+            overflow-x: auto;
+            margin: 15px 0;
+            border: 1px solid #2a2a4a;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #6c5ce7, #a855f7);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(108, 92, 231, 0.3); }
+        .badge {
+            display: inline-block;
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 3px;
+        }
+        .footer { text-align: center; color: #555; font-size: 12px; margin-top: 20px; }
+        .warning-box {
+            background: #1a1a2a;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #f1c40f;
+            margin: 10px 0;
+        }
+        .warning-box .title { color: #f1c40f; font-weight: 600; font-size: 13px; }
+        .warning-box .text { color: #c0c0c0; font-size: 12px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">💻 DeepTrek Soft</div>
+        <div class="subtitle">Терминальный OSINT-клиент</div>
+        
+        <div class="warning-box">
+            <div class="title">🔑 Как получить доступ:</div>
+            <div class="text">
+                1. Перейди на <a href="/activate" style="color:#a855f7;">страницу активации</a><br>
+                2. Получи пароль у <a href="https://t.me/kmyfg" style="color:#a855f7;">@kmyfg</a><br>
+                3. Введи пароль на странице активации<br>
+                4. Получи API-ключ для софта
+            </div>
+        </div>
+        
+        <h3 style="margin-top:20px;color:#a855f7;">📥 Скачать софт:</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:15px 0;">
+            <a href="/download/soft.py" class="btn">🐍 Python (скрипт)</a>
+        </div>
+        
+        <h3 style="margin-top:20px;color:#a855f7;">📋 Команды софта:</h3>
+        <div class="code-box">
+            > help                  - справка
+            > search +79123456789   - поиск по телефону
+            > search user@mail.ru   - поиск по email
+            > search Иванов Иван    - поиск по ФИО
+            > search А123ВС77       - поиск по авто
+            > search 7712345678     - поиск по ИНН
+            > exit                  - выход
+        </div>
+        
+        <div class="footer">DeepTrek Soft © 2026</div>
+    </div>
+</body>
+</html>
+'''
+
+SOFT_SCRIPT = '''
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import requests
+import json
+import os
+import sys
+import shutil
+from datetime import datetime
+
+BASE_URL = "https://deeptrekapi.onrender.com"
+API_URL = f"{BASE_URL}/search"
+ACTIVATE_URL = f"{BASE_URL}/api/activate"
+
+RESET = "\\033[0m"
+BOLD = "\\033[1m"
+RED = "\\033[91m"
+GREEN = "\\033[92m"
+YELLOW = "\\033[93m"
+CYAN = "\\033[96m"
+WHITE = "\\033[97m"
+MAGENTA = "\\033[95m"
+
+def clear():
+    os.system("cls" if os.name == "nt" else "clear")
+
+def get_width():
+    try:
+        return shutil.get_terminal_size().columns
+    except:
+        return 80
+
+def center(text):
+    width = get_width()
+    lines = text.split('\\n')
+    result = []
+    for line in lines:
+        clean = line
+        for code in [RESET, BOLD, RED, GREEN, YELLOW, CYAN, WHITE, MAGENTA]:
+            clean = clean.replace(code, '')
+        pad = max(0, (width - len(clean)) // 2)
+        result.append(" " * pad + line)
+    return '\\n'.join(result)
+
+def print_banner():
+    banner = """
+    ██████╗ ███████╗███████╗██████╗ ████████╗██████╗ ███████╗██╗  ██╗
+    ██╔══██╗██╔════╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝
+    ██║  ██║█████╗  █████╗  ██████╔╝   ██║   ██████╔╝█████╗  █████╔╝ 
+    ██║  ██║██╔══╝  ██╔══╝  ██╔══██╗   ██║   ██╔══██╗██╔══╝  ██╔═██╗ 
+    ██████╔╝███████╗███████╗██║  ██║   ██║   ██║  ██║███████╗██║  ██╗
+    ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+    """
+    print(center(banner))
+    print(center("🔍 OSINT-клиент для DeepTrek API"))
+    print(center("📌 Версия 1.0"))
+    print(center("🌐 " + BASE_URL))
+    print()
+
+def get_api_key():
+    print(center(f"{CYAN}🔑 Введите пароль для активации:{RESET}"))
+    print(center(f"{YELLOW}ℹ️  Пароль можно получить у @kmyfg на {BASE_URL}/activate{RESET}"))
+    print()
+    
+    password = input(center(f"{WHITE}Пароль: {RESET}")).strip()
+    
+    if not password:
+        print(center(f"{RED}❌ Пароль не может быть пустым{RESET}"))
+        return None
+    
+    print(center(f"{CYAN}⏳ Активация...{RESET}"))
+    
+    try:
+        r = requests.post(ACTIVATE_URL, json={"secret_key": password}, timeout=15)
+        
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("status") == "ok":
+                api_key = data.get("api_key")
+                expires = data.get("expires", "неизвестно")
+                print(center(f"{GREEN}✅ API-ключ получен!{RESET}"))
+                print(center(f"{GREEN}📅 Действует до: {expires[:16]}{RESET}"))
+                return api_key
+            else:
+                print(center(f"{RED}❌ {data.get('error', 'Неизвестная ошибка')}{RESET}"))
+                return None
+        else:
+            print(center(f"{RED}❌ HTTP {r.status_code}{RESET}"))
+            return None
+    except requests.exceptions.Timeout:
+        print(center(f"{RED}❌ Таймаут. Проверь интернет.{RESET}"))
+        return None
+    except Exception as e:
+        print(center(f"{RED}❌ Ошибка: {str(e)}{RESET}"))
+        return None
+
+def search(api_key, query):
+    try:
+        r = requests.post(API_URL, headers={"X-API-Secret": api_key}, json={"query": query}, timeout=60)
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        elif r.status_code == 403:
+            return {"ok": False, "error": "Неверный API-ключ"}
+        else:
+            return {"ok": False, "error": f"HTTP {r.status_code}"}
+    except requests.exceptions.Timeout:
+        return {"ok": False, "error": "Таймаут"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+def print_result(data):
+    if not data.get("ok"):
+        print(f"{RED}❌ Ошибка: {data.get('error', 'Неизвестная ошибка')}{RESET}")
+        return
+    
+    result = data.get("data", {})
+    print(f"\\n{GREEN}✅ Найдено!{RESET}")
+    print(f"{CYAN}📱 Запрос: {result.get('query', '')}{RESET}")
+    print(f"{CYAN}📅 Время: {result.get('timestamp', '')[:16]}{RESET}")
+    print(f"{CYAN}📊 Тип: {result.get('type', '')}{RESET}")
+    print(f"{CYAN}📦 Источников: {len(result.get('sources', []))}{RESET}")
+    print()
+    
+    for source in result.get('sources', []):
+        if 'error' in source:
+            print(f"{RED}❌ {source.get('source', '').upper()}: {source.get('error', 'Ошибка')}{RESET}")
+        else:
+            print(f"{GREEN}✅ {source.get('source', '').upper()}: данные найдены{RESET}")
+    
+    print()
+    print(center(f"{YELLOW}Сырые данные:{RESET}"))
+    print(center(json.dumps(result, ensure_ascii=False, indent=2)[:1000]))
+
+def main():
+    clear()
+    print_banner()
+    
+    api_key = get_api_key()
+    if not api_key:
+        print(center(f"{RED}❌ Не удалось получить API-ключ. Выход...{RESET}"))
+        sys.exit(1)
+    
+    while True:
+        print()
+        print(center(f"{GREEN}┌────────────────────────────────────┐{RESET}"))
+        print(center(f"{GREEN}│  {WHITE}Введите запрос или 'exit' для выхода  {GREEN}│{RESET}"))
+        print(center(f"{GREEN}└────────────────────────────────────┘{RESET}"))
+        print()
+        
+        query = input(center(f"{CYAN}🔍 > {RESET}")).strip()
+        
+        if not query:
+            continue
+        
+        if query.lower() in ["exit", "quit", "q"]:
+            print(center(f"{GREEN}👋 До свидания!{RESET}"))
+            break
+        
+        if query.lower() == "help":
+            print(center(f"{YELLOW}📋 Примеры запросов:{RESET}"))
+            print(center(f"{WHITE}  +79123456789  - телефон{RESET}"))
+            print(center(f"{WHITE}  user@mail.ru  - email{RESET}"))
+            print(center(f"{WHITE}  Иванов Иван   - ФИО{RESET}"))
+            print(center(f"{WHITE}  А123ВС77      - авто{RESET}"))
+            print(center(f"{WHITE}  7712345678    - ИНН{RESET}"))
+            continue
+        
+        print(center(f"{CYAN}⏳ Поиск...{RESET}"))
+        
+        result = search(api_key, query)
+        print_result(result)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(center(f"\\n{GREEN}👋 Выход...{RESET}"))
+        sys.exit(0)
+'''
+
 @app.route('/activate')
 def activate_page():
     return render_template_string(ACTIVATE_HTML)
+
+@app.route('/soft')
+def soft_page():
+    return render_template_string(SOFT_PAGE)
+
+@app.route('/download/soft.py')
+def download_soft():
+    return SOFT_SCRIPT, 200, {'Content-Type': 'text/x-python', 'Content-Disposition': 'attachment; filename=soft.py'}
 
 @app.route('/api/activate', methods=['POST'])
 def activate():
@@ -268,6 +586,25 @@ def activate():
     
     if not secret_key:
         return jsonify({"status": "error", "error": "Введите секретный ключ"})
+    
+    if secret_key == SOFTWARE_PASSWORD:
+        api_key = f"deeptrek_{secrets.token_hex(14)}"
+        expires = datetime.now() + timedelta(days=365)
+        
+        subscriptions[secret_key] = {
+            "api_key": api_key,
+            "expires": expires,
+            "created": datetime.now(),
+            "type": "software"
+        }
+        api_keys[api_key] = secret_key
+        
+        return jsonify({
+            "status": "ok",
+            "api_key": api_key,
+            "expires": expires.isoformat(),
+            "type": "software"
+        })
     
     if secret_key in subscriptions:
         created = subscriptions[secret_key]["created"]
@@ -285,20 +622,23 @@ def activate():
     subscriptions[secret_key] = {
         "api_key": api_key,
         "expires": expires,
-        "created": datetime.now()
+        "created": datetime.now(),
+        "type": "normal"
     }
     api_keys[api_key] = secret_key
     
     return jsonify({
         "status": "ok",
         "api_key": api_key,
-        "expires": expires.isoformat()
+        "expires": expires.isoformat(),
+        "type": "normal"
     })
 
-# ==================== MASTER КЛЮЧ ====================
 def check_api_key(api_key):
     if api_key == MASTER_KEY:
         return True
+    if not api_key.startswith("deeptrek_"):
+        return False
     if api_key in api_keys:
         secret_key = api_keys[api_key]
         if secret_key in subscriptions:
@@ -309,57 +649,33 @@ def check_api_key(api_key):
 
 def detect_type(query):
     query = query.strip()
-    
-    # ОГРН/ОГРНИП (13 или 15 цифр)
-    if re.match(r'^\d{13}$|^\d{15}$', query):
-        return "ogrn"
-    
-    # ИНН (10 или 12 цифр)
-    if re.match(r'^\d{10}$|^\d{12}$', query):
-        return "inn"
-    
-    # СНИЛС (11 цифр с пробелами или без)
-    if re.match(r'^\d{11}$', re.sub(r'\D', '', query)):
-        return "snils"
-    
-    # Телефон
-    if re.match(r'^[78]\d{10}$', re.sub(r'\D', '', query)):
-        return "phone"
-    
-    # Email
-    if re.search(r'@', query):
-        return "email"
-    
-    # IP-адрес
-    if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', query):
-        return "ip"
-    
-    # VK ID (число)
-    if re.match(r'^\d+$', query):
-        return "vk"
-    
-    # Telegram
+    if re.match(r'^\d{4}\s?\d{6}$', query):
+        return "passport"
     if query.startswith('@'):
         return "telegram"
-    
-    # Госномер
+    if re.search(r'@', query):
+        return "email"
+    if re.match(r'^[78]\d{10}$', re.sub(r'\D', '', query)):
+        return "phone"
+    if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', query):
+        return "ip"
     if re.match(r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$', query, re.IGNORECASE):
         return "auto"
-    
-    # Паспорт
-    if re.match(r'^\d{4}\s?\d{6}$', query) or re.match(r'^\d{10}$', query):
-        return "passport"
-    
-    # Если есть буквы и пробелы — ФИО или компания
+    if re.match(r'^\d{10}$|^\d{12}$', query):
+        return "inn"
+    if re.match(r'^\d{13}$|^\d{15}$', query):
+        return "ogrn"
+    if re.match(r'^\d{11}$', re.sub(r'\D', '', query)):
+        return "snils"
+    if re.match(r'^\d+$', query):
+        return "vk"
     if re.search(r'[а-яА-Я]', query):
         if len(query.split()) >= 2:
             return "fio"
         else:
             return "company"
-    
-    return "fio"
+    return "username"
 
-# ==================== ПАРСЕРЫ ====================
 def search_atlas(query, search_type):
     params = {
         "token": ATLAS_TOKEN,
@@ -374,22 +690,14 @@ def search_atlas(query, search_type):
         return {"source": "atlas", "error": str(e)}
 
 def search_blackeye(query, search_type):
-    # Временно отключено
     return {"source": "blackeye", "error": "Временно недоступен"}
 
 def search_snusbase(query, search_type):
-    # Snusbase поддерживает: email, username, fio, ip
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Snusbase не поддерживает этот тип"}
-    
-    # Для IP используем "ip" тип
-    if search_type == "ip":
-        snus_type = "ip"
-    elif search_type == "fio":
-        snus_type = "username"  # или "fio" — пробуй оба
-    else:
-        snus_type = search_type
-    
+    snus_type = "ip" if search_type == "ip" else search_type
+    if search_type == "fio":
+        snus_type = "username"
     payload = {"terms": [query], "types": [snus_type], "wildcard": False}
     headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
     try:
@@ -441,25 +749,18 @@ def search_vk(query):
         return {"source": "vk", "error": str(e)}
 
 def search_ofdata(query, search_type):
-    """
-    Поиск по OFDATA (гос. реестры)
-    Поддерживает: inn, ogrn, fio, company
-    """
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "OFDATA не поддерживает этот тип"}
-    
     if search_type in ["inn", "ogrn"]:
         by = search_type
         obj = "org"
     elif search_type == "fio":
         by = "name"
         obj = "ent"
-    else:  # company
+    else:
         by = "name"
         obj = "org"
-    
     url = f"{OFDATA_URL}?key={OFDATA_KEY}&by={by}&obj={obj}&query={query}&limit=10"
-    
     try:
         r = requests.get(url, timeout=15)
         if r.status_code == 200:
@@ -473,82 +774,88 @@ def search_ofdata(query, search_type):
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
-# ==================== ПОИСК ====================
+def search_raidfind(query, search_type):
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "vk": "vk"
+    }
+    if search_type not in type_map:
+        return {"source": "raidfind", "error": "Raidfind не поддерживает этот тип"}
+    payload = {
+        "phone": query,
+        "mode": "premium",
+        "query_type": type_map[search_type]
+    }
+    try:
+        r = requests.post(RAIDFIND_URL, json=payload, timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("ok"):
+                return {"source": "raidfind", "data": data}
+            else:
+                return {"source": "raidfind", "error": data.get("error", "Данных нет")}
+        else:
+            return {"source": "raidfind", "error": f"HTTP {r.status_code}"}
+    except requests.exceptions.Timeout:
+        return {"source": "raidfind", "error": "Таймаут"}
+    except Exception as e:
+        return {"source": "raidfind", "error": str(e)}
+
 @app.route('/search', methods=['POST'])
 def search():
     api_key = request.headers.get('X-API-Secret')
-    
     if not check_api_key(api_key):
         return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
-    
     data = request.get_json()
     if not data:
         return jsonify({"error": "Нет данных"}), 400
-    
     query = data.get('query', '').strip()
     if not query:
         return jsonify({"error": "Пустой запрос"}), 400
-    
     search_type = data.get('type')
     if not search_type:
         search_type = detect_type(query)
-    
     result = {
         "query": query,
         "type": search_type,
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
-    
-    # Атлас — почти всё
     result["sources"].append(search_atlas(query, search_type))
-    
-    # BlackEye временно отключён
-    # result["sources"].append(search_blackeye(query, search_type))
-    
-    # Snusbase — email, fio, ip
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
-    
-    # IntelX — только телефоны
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
-    
-    # VK — числа (ID)
     if search_type == "vk":
         result["sources"].append(search_vk(query))
-    
-    # OFDATA — ИНН, ОГРН, ФИО, компании
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
-    
-    # Telegram — через Атлас
     if search_type == "telegram":
         result["sources"].append(search_atlas(query, search_type))
-    
-    # Авто — через Атлас
     if search_type == "auto":
         result["sources"].append(search_atlas(query, search_type))
-    
+    if search_type in ["phone", "email", "fio", "vk"]:
+        result["sources"].append(search_raidfind(query, search_type))
     return jsonify(result)
 
-# ==================== HEALTH ====================
 @app.route('/health')
 def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
 
-# ==================== ROOT ====================
 @app.route('/')
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "7.0",
+        "version": "8.0",
         "endpoints": {
             "/search": "POST - поиск (нужен X-API-Secret)",
             "/activate": "GET - страница активации API",
+            "/soft": "GET - страница софта",
             "/health": "GET - статус"
         },
-        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA"]
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Raidfind"]
     })
 
 if __name__ == '__main__':
