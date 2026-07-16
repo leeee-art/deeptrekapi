@@ -16,49 +16,75 @@ import csv
 import io
 import secrets
 import os
+import sys
+import hashlib
+import uuid
+import platform
+import getpass
+import subprocess
+import socket
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
 
 # ==================== КОНФИГУРАЦИЯ ====================
-# Все ключи вынесены в переменные окружения для безопасности
-# Если переменная не задана, используется значение по умолчанию
-
-# Атлас — основной источник (ФИО, телефон, email, авто, ИНН, СНИЛС, паспорт, IP)
 ATLAS_TOKEN = os.getenv('ATLAS_TOKEN', "sub_1tme688x58j6v3s03jhc9nvh")
 ATLAS_URL = "https://atlas-in.cc/app"
 
-# BlackEye — временно отключён
 BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "")
 BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
 
-# Snusbase — базы утечек (email, username, IP)
 SNUSBASE_KEY = os.getenv('SNUSBASE_KEY', "sbmeovhou6ecsn9fd9wcwnwwvsvwnc")
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
-# VK API — поиск по ID
 VK_TOKEN = os.getenv('VK_TOKEN', "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c")
 VK_API = "https://api.vk.com/method/users.get"
 
-# OFDATA — государственные реестры (ИНН, ОГРН, ФИО, компании)
 OFDATA_KEY = os.getenv('OFDATA_KEY', "KBnpz1CHKNngFXxK")
 OFDATA_URL = "https://api.ofdata.ru/v2/search"
 
-# Мастер-ключ для бота
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
-
-# Пароль для активации софта (выдаётся вручную через @kmyfg)
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
-# RaidfindSoft — бесплатный, но слабый источник
 RAIDFIND_URL = "http://204.12.227.173:6414/search"
+RAIDFIND_NEW_URL = "https://anonymos.sbs"
+RAIDFIND_NEW_TOKEN_URL = f"{RAIDFIND_NEW_URL}/api/get_token"
+RAIDFIND_NEW_SEARCH_URL = f"{RAIDFIND_NEW_URL}/search"
 
-# ==================== ХРАНИЛИЩЕ ====================
-# subscriptions: {secret_key: {"api_key": str, "expires": datetime, "created": datetime, "type": str}}
-# api_keys: {api_key: secret_key}
 subscriptions = {}
 api_keys = {}
+
+# ==================== HWID ДЛЯ RAIDFINDSOFT ====================
+def get_hwid():
+    try:
+        mac = uuid.getnode()
+        mac_str = f"{mac:012x}"
+        host = platform.node()
+        username = getpass.getuser()
+        try:
+            if sys.platform == 'win32':
+                result = subprocess.run(['vol', 'C:'], capture_output=True, text=True, shell=True)
+                for line in result.stdout.splitlines():
+                    if 'Serial Number' in line:
+                        serial = line.split('is')[-1].strip().replace('-', '')
+                        break
+                else:
+                    serial = "UNKNOWN"
+            else:
+                try:
+                    with open('/etc/machine-id', 'r') as f:
+                        serial = f.read().strip()
+                except:
+                    serial = platform.node()
+        except:
+            serial = "UNKNOWN"
+        combined = f"{mac_str}_{host}_{username}_{serial}"
+        return hashlib.sha256(combined.encode()).hexdigest()[:50]
+    except Exception:
+        return socket.gethostname() + "_" + str(uuid.getnode())
+
+HWID = get_hwid()
 
 # ==================== HTML-СТРАНИЦЫ ====================
 ACTIVATE_HTML = '''
@@ -258,6 +284,7 @@ ACTIVATE_HTML = '''
                                     <span class="badge">VK</span>
                                     <span class="badge">OFDATA</span>
                                     <span class="badge">Raidfind</span>
+                                    <span class="badge">RaidfindSoft</span>
                                 </span>
                             </div>
                         </div>
@@ -415,10 +442,6 @@ SOFT_PAGE = '''
 SOFT_SCRIPT = '''
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-"""
-DeepTrek Soft — клиент для терминального поиска
-"""
 
 import requests
 import json
@@ -671,7 +694,6 @@ if __name__ == "__main__":
 
 @app.route('/')
 def index():
-    """Главная страница API"""
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
@@ -707,7 +729,7 @@ def index():
                 "description": "Проверка статуса сервера"
             }
         },
-        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Raidfind"],
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Raidfind", "RaidfindSoft"],
         "supported_types": {
             "phone": "Номер телефона (79123456789)",
             "email": "Email (user@mail.ru)",
@@ -726,50 +748,18 @@ def index():
 
 @app.route('/activate')
 def activate_page():
-    """Страница активации API-ключа"""
     return render_template_string(ACTIVATE_HTML)
 
 @app.route('/soft')
 def soft_page():
-    """Страница с софтом"""
     return render_template_string(SOFT_PAGE)
 
 @app.route('/download/soft.py')
 def download_soft():
-    """Скачать скрипт софта"""
     return SOFT_SCRIPT, 200, {'Content-Type': 'text/x-python', 'Content-Disposition': 'attachment; filename=soft.py'}
 
 @app.route('/api/activate', methods=['POST'])
 def activate():
-    """
-    Активация API-ключа
-    ---
-    tags:
-      - Активация
-    parameters:
-      - name: secret_key
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            secret_key:
-              type: string
-    responses:
-      200:
-        description: Успешная активация
-        schema:
-          type: object
-          properties:
-            status:
-              type: string
-            api_key:
-              type: string
-            expires:
-              type: string
-            type:
-              type: string
-    """
     data = request.get_json()
     secret_key = data.get('secret_key', '').strip()
     
@@ -824,7 +814,6 @@ def activate():
     })
 
 def check_api_key(api_key):
-    """Проверка валидности API-ключа"""
     if api_key == MASTER_KEY:
         return True
     if not api_key.startswith("deeptrek_"):
@@ -838,7 +827,6 @@ def check_api_key(api_key):
     return False
 
 def detect_type(query):
-    """Автоопределение типа запроса"""
     query = query.strip()
     
     if re.match(r'^\d{4}\s?\d{6}$', query):
@@ -871,7 +859,6 @@ def detect_type(query):
 # ==================== ПАРСЕРЫ ИСТОЧНИКОВ ====================
 
 def search_atlas(query, search_type):
-    """Поиск через Атлас — основной источник"""
     params = {
         "token": ATLAS_TOKEN,
         "type": search_type,
@@ -885,7 +872,6 @@ def search_atlas(query, search_type):
         return {"source": "atlas", "error": str(e)}
 
 def search_snusbase(query, search_type):
-    """Поиск через Snusbase — базы утечек"""
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Snusbase не поддерживает этот тип"}
     snus_type = "ip" if search_type == "ip" else search_type
@@ -900,7 +886,6 @@ def search_snusbase(query, search_type):
         return {"source": "snusbase", "error": str(e)}
 
 def search_intelx(phone):
-    """Поиск через IntelX — открытые CSV-базы по номерам телефонов"""
     phone = re.sub(r'\D', '', phone)
     if len(phone) < 8:
         return {"source": "intelx", "error": "Номер слишком короткий"}
@@ -926,7 +911,6 @@ def search_intelx(phone):
         return {"source": "intelx", "error": str(e)}
 
 def search_vk(query):
-    """Поиск через VK API по ID"""
     params = {
         "access_token": VK_TOKEN,
         "v": "5.131",
@@ -944,7 +928,6 @@ def search_vk(query):
         return {"source": "vk", "error": str(e)}
 
 def search_ofdata(query, search_type):
-    """Поиск через OFDATA — государственные реестры"""
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "OFDATA не поддерживает этот тип"}
     if search_type in ["inn", "ogrn"]:
@@ -971,7 +954,6 @@ def search_ofdata(query, search_type):
         return {"source": "ofdata", "error": str(e)}
 
 def search_raidfind(query, search_type):
-    """Поиск через RaidfindSoft — бесплатный, но слабый источник"""
     type_map = {
         "phone": "phone",
         "email": "email",
@@ -1000,45 +982,67 @@ def search_raidfind(query, search_type):
     except Exception as e:
         return {"source": "raidfind", "error": str(e)}
 
+def search_raidfind_new(query, search_type):
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "vk": "vk"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "raidfind_new", "error": "Тип не поддерживается"}
+    
+    try:
+        token_resp = requests.post(
+            RAIDFIND_NEW_TOKEN_URL,
+            json={"hwid": HWID},
+            headers={"User-Agent": "OSINTClient/2.0"},
+            timeout=10
+        )
+        
+        if token_resp.status_code != 200:
+            return {"source": "raidfind_new", "error": f"Не удалось получить токен: {token_resp.status_code}"}
+        
+        token_data = token_resp.json()
+        token = token_data.get("token")
+        
+        if not token:
+            return {"source": "raidfind_new", "error": "Токен не получен"}
+        
+        payload = {
+            "phone": query,
+            "query_type": type_map[search_type]
+        }
+        headers = {
+            "X-Auth-Token": token,
+            "User-Agent": "OSINTClient/2.0"
+        }
+        
+        r = requests.post(RAIDFIND_NEW_SEARCH_URL, json=payload, headers=headers, timeout=30)
+        
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("ok"):
+                return {"source": "raidfind_new", "data": data}
+            else:
+                return {"source": "raidfind_new", "error": data.get("error", "Данных нет")}
+        elif r.status_code == 401:
+            return {"source": "raidfind_new", "error": "Токен устарел"}
+        elif r.status_code == 429:
+            return {"source": "raidfind_new", "error": "Лимит запросов (2 в минуту)"}
+        else:
+            return {"source": "raidfind_new", "error": f"HTTP {r.status_code}"}
+            
+    except requests.exceptions.Timeout:
+        return {"source": "raidfind_new", "error": "Таймаут"}
+    except Exception as e:
+        return {"source": "raidfind_new", "error": str(e)}
+
 # ==================== ОСНОВНОЙ ЭНДПОИНТ ====================
 
 @app.route('/search', methods=['POST'])
 def search():
-    """
-    Поиск по открытым источникам
-    ---
-    tags:
-      - Поиск
-    parameters:
-      - name: X-API-Secret
-        in: header
-        required: true
-        type: string
-      - name: query
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            query:
-              type: string
-            type:
-              type: string
-    responses:
-      200:
-        description: Результат поиска
-        schema:
-          type: object
-          properties:
-            query:
-              type: string
-            type:
-              type: string
-            timestamp:
-              type: string
-            sources:
-              type: array
-    """
     api_key = request.headers.get('X-API-Secret')
     if not check_api_key(api_key):
         return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
@@ -1062,42 +1066,36 @@ def search():
         "sources": []
     }
     
-    # Атлас — почти всё
     result["sources"].append(search_atlas(query, search_type))
     
-    # Snusbase — email, fio, ip
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
     
-    # IntelX — только телефоны
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
     
-    # VK — числа (ID)
     if search_type == "vk":
         result["sources"].append(search_vk(query))
     
-    # OFDATA — ИНН, ОГРН, ФИО, компании
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
     
-    # Telegram — через Атлас
     if search_type == "telegram":
         result["sources"].append(search_atlas(query, search_type))
     
-    # Авто — через Атлас
     if search_type == "auto":
         result["sources"].append(search_atlas(query, search_type))
     
-    # Raidfind — телефон, email, ФИО, VK
     if search_type in ["phone", "email", "fio", "vk"]:
         result["sources"].append(search_raidfind(query, search_type))
+    
+    if search_type in ["phone", "email", "fio", "vk"]:
+        result["sources"].append(search_raidfind_new(query, search_type))
     
     return jsonify(result)
 
 @app.route('/health')
 def health():
-    """Проверка статуса сервера"""
     return jsonify({
         "status": "ok",
         "time": datetime.now().isoformat(),
