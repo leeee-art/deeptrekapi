@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0
-OSINT-агрегатор для поиска по открытым источникам
+DeepTrek API v8.0 — OSINT-агрегатор + AI-досье + AI-чат
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -43,6 +42,10 @@ SHODAN_KEY = os.getenv('SHODAN_KEY', "z6kC8mX9pL2qR0sT4uV7wY1zA3bD5eG8hJ0nM3pQ6s
 
 ABUSEIPDB_KEY = os.getenv('ABUSEIPDB_KEY', "58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581")
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
+
+GROQ_KEY = os.getenv('GROQ_KEY', "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")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
@@ -249,6 +252,7 @@ ACTIVATE_HTML = '''
                                     <span class="badge">OFDATA</span>
                                     <span class="badge">Shodan</span>
                                     <span class="badge">AbuseIPDB</span>
+                                    <span class="badge">Groq</span>
                                     <span class="badge">BlackEye</span>
                                 </span>
                             </div>
@@ -289,10 +293,353 @@ ACTIVATE_HTML = '''
 </html>
 '''
 
+# ==================== HTML СТРАНИЦА СОФТА ====================
+SOFT_PAGE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepTrek — Софт</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0b0b1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: #151528;
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid #6c5ce7;
+            box-shadow: 0 0 40px rgba(108, 92, 231, 0.15);
+        }
+        .logo { font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #6c5ce7, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 25px; }
+        .code-box {
+            background: #0a0a18;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #c0c0c0;
+            overflow-x: auto;
+            margin: 15px 0;
+            border: 1px solid #2a2a4a;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #6c5ce7, #a855f7);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(108, 92, 231, 0.3); }
+        .footer { text-align: center; color: #555; font-size: 12px; margin-top: 20px; }
+        .warning-box {
+            background: #1a1a2a;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #f1c40f;
+            margin: 10px 0;
+        }
+        .warning-box .title { color: #f1c40f; font-weight: 600; font-size: 13px; }
+        .warning-box .text { color: #c0c0c0; font-size: 12px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">💻 DeepTrek Soft</div>
+        <div class="subtitle">Терминальный OSINT-клиент</div>
+        
+        <div class="warning-box">
+            <div class="title">🔑 Как получить доступ:</div>
+            <div class="text">
+                1. Перейди на <a href="/activate" style="color:#a855f7;">страницу активации</a><br>
+                2. Получи пароль у <a href="https://t.me/kmyfg" style="color:#a855f7;">@kmyfg</a><br>
+                3. Введи пароль на странице активации<br>
+                4. Получи API-ключ для софта
+            </div>
+        </div>
+        
+        <h3 style="margin-top:20px;color:#a855f7;">📥 Скачать софт:</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:15px 0;">
+            <a href="/download/soft.py" class="btn">🐍 Python (скрипт)</a>
+        </div>
+        
+        <h3 style="margin-top:20px;color:#a855f7;">📋 Команды софта:</h3>
+        <div class="code-box">
+            > help                  - справка
+            > search +79123456789   - поиск по телефону
+            > search user@mail.ru   - поиск по email
+            > search Иванов Иван    - поиск по ФИО
+            > search А123ВС77       - поиск по авто
+            > search 7712345678     - поиск по ИНН
+            > exit                  - выход
+        </div>
+        
+        <div class="footer">DeepTrek Soft © 2026</div>
+    </div>
+</body>
+</html>
+'''
+
+# ==================== СКРИПТ СОФТА ====================
+SOFT_SCRIPT = '''
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import requests
+import json
+import os
+import sys
+import shutil
+from datetime import datetime
+
+BASE_URL = "https://deeptrekapi.onrender.com"
+API_URL = f"{BASE_URL}/search"
+ACTIVATE_URL = f"{BASE_URL}/api/activate"
+
+RESET = "\\033[0m"
+BOLD = "\\033[1m"
+RED = "\\033[91m"
+GREEN = "\\033[92m"
+YELLOW = "\\033[93m"
+CYAN = "\\033[96m"
+WHITE = "\\033[97m"
+MAGENTA = "\\033[95m"
+DIM = "\\033[2m"
+
+def clear():
+    os.system("cls" if os.name == "nt" else "clear")
+
+def get_width():
+    try:
+        return shutil.get_terminal_size().columns
+    except:
+        return 80
+
+def center(text):
+    width = get_width()
+    lines = text.split('\\n')
+    result = []
+    for line in lines:
+        clean = line
+        for code in [RESET, BOLD, RED, GREEN, YELLOW, CYAN, WHITE, MAGENTA, DIM]:
+            clean = clean.replace(code, '')
+        pad = max(0, (width - len(clean)) // 2)
+        result.append(" " * pad + line)
+    return '\\n'.join(result)
+
+def print_banner():
+    banner = """
+    ██████╗ ███████╗███████╗██████╗ ████████╗██████╗ ███████╗██╗  ██╗
+    ██╔══██╗██╔════╝██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝
+    ██║  ██║█████╗  █████╗  ██████╔╝   ██║   ██████╔╝█████╗  █████╔╝ 
+    ██║  ██║██╔══╝  ██╔══╝  ██╔══██╗   ██║   ██╔══██╗██╔══╝  ██╔═██╗ 
+    ██████╔╝███████╗███████╗██║  ██║   ██║   ██║  ██║███████╗██║  ██╗
+    ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+    """
+    print(center(banner))
+    print(center("🔍 OSINT-клиент для DeepTrek API"))
+    print(center("📌 Версия 2.0"))
+    print(center("🌐 " + BASE_URL))
+    print()
+
+def get_api_key():
+    print(center(f"{CYAN}🔑 Введите пароль для активации:{RESET}"))
+    print(center(f"{YELLOW}ℹ️  Пароль можно получить у @kmyfg на {BASE_URL}/activate{RESET}"))
+    print()
+    
+    password = input(center(f"{WHITE}Пароль: {RESET}")).strip()
+    
+    if not password:
+        print(center(f"{RED}❌ Пароль не может быть пустым{RESET}"))
+        return None
+    
+    print(center(f"{CYAN}⏳ Активация...{RESET}"))
+    
+    try:
+        r = requests.post(ACTIVATE_URL, json={"secret_key": password}, timeout=15)
+        
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("status") == "ok":
+                api_key = data.get("api_key")
+                expires = data.get("expires", "неизвестно")
+                print(center(f"{GREEN}✅ API-ключ получен!{RESET}"))
+                print(center(f"{GREEN}📅 Действует до: {expires[:16]}{RESET}"))
+                return api_key
+            else:
+                print(center(f"{RED}❌ {data.get('error', 'Неизвестная ошибка')}{RESET}"))
+                return None
+        else:
+            print(center(f"{RED}❌ HTTP {r.status_code}{RESET}"))
+            return None
+    except requests.exceptions.Timeout:
+        print(center(f"{RED}❌ Таймаут. Проверь интернет.{RESET}"))
+        return None
+    except Exception as e:
+        print(center(f"{RED}❌ Ошибка: {str(e)}{RESET}"))
+        return None
+
+def search(api_key, query):
+    try:
+        r = requests.post(API_URL, headers={"X-API-Secret": api_key}, json={"query": query}, timeout=60)
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        elif r.status_code == 403:
+            return {"ok": False, "error": "Неверный API-ключ"}
+        else:
+            return {"ok": False, "error": f"HTTP {r.status_code}"}
+    except requests.exceptions.Timeout:
+        return {"ok": False, "error": "Таймаут"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+def print_result(data):
+    if not data.get("ok"):
+        print(f"{RED}❌ Ошибка: {data.get('error', 'Неизвестная ошибка')}{RESET}")
+        return
+    
+    result = data.get("data", {})
+    
+    print(f"\\n{GREEN}✅ Найдено!{RESET}")
+    print(f"{CYAN}📱 Запрос: {result.get('query', '')}{RESET}")
+    print(f"{CYAN}📅 Время: {result.get('timestamp', '')[:16]}{RESET}")
+    print(f"{CYAN}📊 Тип: {result.get('type', '')}{RESET}")
+    print()
+    
+    # Досье от AI
+    dossier = result.get("dossier", {})
+    if dossier and dossier.get("source") == "groq":
+        print(f"{MAGENTA}📋 ДОСЬЕ ОТ AI:{RESET}")
+        try:
+            content = dossier.get("data", {}).get("choices", [{}])[0].get("message", {}).get("content", "")
+            if content:
+                print(content[:2000])
+                print()
+        except:
+            pass
+    
+    for source in result.get('sources', []):
+        if 'error' in source:
+            print(f"{RED}❌ {source.get('source', '').upper()}: {source.get('error', 'Ошибка')}{RESET}")
+            continue
+        
+        src_name = source.get('source', '').upper()
+        print(f"{GREEN}✅ {src_name}{RESET}")
+        
+        if src_name == "ATLAS":
+            data = source.get('data', {})
+            fast = data.get('fast_result', {})
+            
+            if fast:
+                if fast.get('fullname'):
+                    print(f"    {WHITE}ФИО:{RESET} {', '.join([x[0] for x in fast['fullname'][:3]])}")
+                if fast.get('birthday'):
+                    print(f"    {WHITE}Даты рождения:{RESET} {', '.join([x[0] for x in fast['birthday'][:2]])}")
+                if fast.get('email'):
+                    print(f"    {WHITE}Email:{RESET} {', '.join([x[0] for x in fast['email'][:3]])}")
+                if fast.get('phone'):
+                    print(f"    {WHITE}Телефоны:{RESET} {', '.join([x[0] for x in fast['phone'][:3]])}")
+                if fast.get('region'):
+                    print(f"    {WHITE}Регионы:{RESET} {', '.join([x[0][:50] for x in fast['region'][:2]])}")
+        
+        elif src_name == "SHODAN":
+            data = source.get('data', {})
+            if data:
+                print(f"    {WHITE}IP:{RESET} {data.get('ip_str', '')}")
+                print(f"    {WHITE}Страна:{RESET} {data.get('country_name', '')}")
+                print(f"    {WHITE}Порты:{RESET} {', '.join(map(str, data.get('ports', [])[:5]))}")
+        
+        elif src_name == "ABUSEIPDB":
+            data = source.get('data', {})
+            if data:
+                print(f"    {WHITE}Рейтинг доверия:{RESET} {data.get('confidence', 0)}%")
+                print(f"    {WHITE}Жалоб:{RESET} {data.get('reports', 0)}")
+    
+    print()
+    print(center(f"{YELLOW}📄 Полный JSON:{RESET}"))
+    print(center(json.dumps(result, ensure_ascii=False, indent=2)[:1500]))
+
+def main():
+    clear()
+    print_banner()
+    
+    api_key = get_api_key()
+    if not api_key:
+        print(center(f"{RED}❌ Не удалось получить API-ключ. Выход...{RESET}"))
+        sys.exit(1)
+    
+    while True:
+        print()
+        print(center(f"{GREEN}┌────────────────────────────────────────────────────┐{RESET}"))
+        print(center(f"{GREEN}│  {WHITE}Введите запрос или 'exit' для выхода                   {GREEN}│{RESET}"))
+        print(center(f"{GREEN}│  {DIM}help - справка по типам запросов                     {GREEN}│{RESET}"))
+        print(center(f"{GREEN}└────────────────────────────────────────────────────┘{RESET}"))
+        print()
+        
+        query = input(center(f"{CYAN}🔍 > {RESET}")).strip()
+        
+        if not query:
+            continue
+        
+        if query.lower() in ["exit", "quit", "q"]:
+            print(center(f"{GREEN}👋 До свидания!{RESET}"))
+            break
+        
+        if query.lower() == "help":
+            print(center(f"{YELLOW}📋 Примеры запросов:{RESET}"))
+            print(center(f"{WHITE}  +79123456789  - телефон{RESET}"))
+            print(center(f"{WHITE}  user@mail.ru  - email{RESET}"))
+            print(center(f"{WHITE}  Иванов Иван   - ФИО{RESET}"))
+            print(center(f"{WHITE}  А123ВС77      - авто{RESET}"))
+            print(center(f"{WHITE}  7712345678    - ИНН{RESET}"))
+            print(center(f"{WHITE}  8.8.8.8       - IP{RESET}"))
+            continue
+        
+        print(center(f"{CYAN}⏳ Поиск...{RESET}"))
+        
+        result = search(api_key, query)
+        print_result(result)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(center(f"\\n{GREEN}👋 Выход...{RESET}"))
+        sys.exit(0)
+'''
+
 # ==================== АКТИВАЦИЯ ====================
 @app.route('/activate')
 def activate_page():
     return render_template_string(ACTIVATE_HTML)
+
+@app.route('/soft')
+def soft_page():
+    return render_template_string(SOFT_PAGE)
+
+@app.route('/download/soft.py')
+def download_soft():
+    return SOFT_SCRIPT, 200, {'Content-Type': 'text/x-python', 'Content-Disposition': 'attachment; filename=soft.py'}
 
 @app.route('/api/activate', methods=['POST'])
 def activate():
@@ -539,46 +886,82 @@ def search_abuseipdb(ip):
     except Exception as e:
         return {"source": "abuseipdb", "error": str(e)}
 
-# ==================== BLACKEYE (временно отключён) ====================
+# ==================== GROQ (AI) ====================
+def search_groq(prompt):
+    headers = {
+        "Authorization": f"Bearer {GROQ_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": "Ты — OSINT-аналитик. На основе данных формируй структурированное досье. Отвечай на русском языке. Если данных нет — пиши 'Нет данных'."},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 1500,
+        "temperature": 0.3
+    }
+    
+    try:
+        r = requests.post(GROQ_URL, headers=headers, json=data, timeout=30)
+        if r.status_code == 200:
+            return {"source": "groq", "data": r.json()}
+        else:
+            return {"source": "groq", "error": f"HTTP {r.status_code}: {r.text[:100]}"}
+    except Exception as e:
+        return {"source": "groq", "error": str(e)}
+
+def chat_groq(messages, max_tokens=500):
+    headers = {
+        "Authorization": f"Bearer {GROQ_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.7
+    }
+    
+    try:
+        r = requests.post(GROQ_URL, headers=headers, json=data, timeout=30)
+        if r.status_code == 200:
+            return {"ok": True, "data": r.json()}
+        else:
+            return {"ok": False, "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# ==================== БЛЭК АЙ (ВРЕМЕННО ОТКЛЮЧЁН) ====================
 BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "y06BzECXTqtOjzdIcTVQPw")
 BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
 
 def search_blackeye(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email",
-        "fio": "fio",
-        "vk": "vk",
-        "auto": "auto"
-    }
-    
-    if search_type not in type_map:
-        return {"source": "blackeye", "error": "Тип не поддерживается"}
-    
-    payload = {
-        "type": type_map[search_type],
-        "q": query,
-        "limit": 100
-    }
-    headers = {
-        "Authorization": f"Bearer {BLACKEYE_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
-    try:
-        r = requests.post(BLACKEYE_URL, headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            if data:
-                return {"source": "blackeye", "data": data}
-            else:
-                return {"source": "blackeye", "error": "Данных нет"}
-        else:
-            return {"source": "blackeye", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "blackeye", "error": str(e)}
+    return {"source": "blackeye", "error": "Временно недоступен"}
 
-# ==================== ПОИСК ====================
+# ==================== ФУНКЦИЯ ДЛЯ ДОСЬЕ ====================
+def generate_dossier(raw_data):
+    prompt = f"""
+Помоги собрать досье. Все данные получены из OSINT-источников.
+
+Сырые данные:
+{json.dumps(raw_data, ensure_ascii=False, indent=2)}
+
+Сформируй структурированное досье по следующим разделам:
+1. Основная информация (ФИО, дата рождения, телефон, email)
+2. Адреса и регионы
+3. Паспортные данные (если есть)
+4. Аккаунты в соцсетях (VK, Telegram и др.)
+5. IP-адреса и техническая информация
+6. Утечки и базы данных
+7. Компании и ИНН (если есть)
+8. Выводы и риски
+
+Отвечай на русском языке. Если данные отсутствуют — пиши "Нет данных".
+"""
+    return search_groq(prompt)
+
+# ==================== ОСНОВНОЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
     api_key = request.headers.get('X-API-Secret')
@@ -604,38 +987,63 @@ def search():
         "sources": []
     }
     
-    # Атлас — почти всё
+    # === СБОР ДАННЫХ ===
     result["sources"].append(search_atlas(query, search_type))
     
-    # VK
     if search_type == "vk":
         result["sources"].append(search_vk(query))
     
-    # Snusbase — email, fio, ip
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
     
-    # IntelX — только телефоны
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
     
-    # OFDATA — inn, ogrn, fio, company
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
     
-    # Shodan — только ip
     if search_type == "ip":
         result["sources"].append(search_shodan(query))
-    
-    # AbuseIPDB — только ip
-    if search_type == "ip":
         result["sources"].append(search_abuseipdb(query))
     
-    # BlackEye (временно отключён)
-    # if search_type in ["phone", "email", "fio", "auto", "vk"]:
-    #     result["sources"].append(search_blackeye(query, search_type))
+    # === ГЕНЕРАЦИЯ ДОСЬЕ ===
+    raw_data = {
+        "query": query,
+        "type": search_type,
+        "timestamp": result["timestamp"],
+        "sources": result["sources"]
+    }
+    
+    dossier_result = generate_dossier(raw_data)
+    result["dossier"] = dossier_result
     
     return jsonify(result)
+
+# ==================== AI-ЧАТ ====================
+@app.route('/chat', methods=['POST'])
+def chat():
+    api_key = request.headers.get('X-API-Secret')
+    if not check_api_key(api_key):
+        return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Нет данных"}), 400
+    
+    messages = data.get('messages', [])
+    max_tokens = data.get('max_tokens', 500)
+    
+    if not messages:
+        return jsonify({"error": "Нет сообщений"}), 400
+    
+    response = chat_groq(messages, max_tokens)
+    
+    if response.get("ok"):
+        result = response["data"]
+        content = result["choices"][0]["message"]["content"]
+        return jsonify({"response": content})
+    else:
+        return jsonify({"error": response.get("error", "Неизвестная ошибка")}), 500
 
 # ==================== HEALTH ====================
 @app.route('/health')
@@ -652,28 +1060,22 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор для поиска по открытым источникам",
+        "description": "OSINT-агрегатор + AI-досье + AI-чат",
         "author": "@kmyfg",
         "endpoints": {
-            "/search": "POST - поиск (нужен X-API-Secret)",
+            "/search": "POST - поиск + досье (нужен X-API-Secret)",
+            "/chat": "POST - AI-чат (нужен X-API-Secret)",
             "/activate": "GET - страница активации API",
+            "/soft": "GET - страница софта",
+            "/download/soft.py": "GET - скачать софт",
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "BlackEye"],
-        "supported_types": {
-            "phone": "Номер телефона",
-            "email": "Email",
-            "fio": "ФИО",
-            "auto": "Госномер",
-            "inn": "ИНН",
-            "ogrn": "ОГРН",
-            "snils": "СНИЛС",
-            "passport": "Паспорт",
-            "ip": "IP-адрес",
-            "telegram": "Telegram",
-            "vk": "VK ID",
-            "company": "Название компании"
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Groq", "BlackEye"],
+        "features": {
+            "search": "Поиск по 12 типам запросов",
+            "dossier": "Автоматическое формирование досье через AI",
+            "chat": "AI-чат с поддержкой истории диалога"
         }
     })
 
