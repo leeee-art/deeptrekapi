@@ -5,7 +5,7 @@ OSINT-агрегатор для поиска по открытым источн�
 Ссылка: https://deeptrekapi.onrender.com
 """
 
-from flask import Flask, request, jsonify, render_template_string, send_file
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import requests
 import json
@@ -41,47 +41,14 @@ OFDATA_URL = "https://api.ofdata.ru/v2/search"
 
 SHODAN_KEY = os.getenv('SHODAN_KEY', "z6kC8mX9pL2qR0sT4uV7wY1zA3bD5eG8hJ0nM3pQ6sT9vW2yZ4cF7iJ1lN4oR7uX0zA3C5")
 
+ABUSEIPDB_KEY = os.getenv('ABUSEIPDB_KEY', "58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581")
+ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
+
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
-RAIDFIND_URL = "http://204.12.227.173:6414/search"
-RAIDFIND_NEW_URL = "https://anonymos.sbs"
-RAIDFIND_NEW_TOKEN_URL = f"{RAIDFIND_NEW_URL}/api/get_token"
-RAIDFIND_NEW_SEARCH_URL = f"{RAIDFIND_NEW_URL}/search"
-
 subscriptions = {}
 api_keys = {}
-
-# ==================== HWID ДЛЯ RAIDFINDSOFT ====================
-def get_hwid():
-    try:
-        mac = uuid.getnode()
-        mac_str = f"{mac:012x}"
-        host = platform.node()
-        username = getpass.getuser()
-        try:
-            if sys.platform == 'win32':
-                result = subprocess.run(['vol', 'C:'], capture_output=True, text=True, shell=True)
-                for line in result.stdout.splitlines():
-                    if 'Serial Number' in line:
-                        serial = line.split('is')[-1].strip().replace('-', '')
-                        break
-                else:
-                    serial = "UNKNOWN"
-            else:
-                try:
-                    with open('/etc/machine-id', 'r') as f:
-                        serial = f.read().strip()
-                except:
-                    serial = platform.node()
-        except:
-            serial = "UNKNOWN"
-        combined = f"{mac_str}_{host}_{username}_{serial}"
-        return hashlib.sha256(combined.encode()).hexdigest()[:50]
-    except Exception:
-        return socket.gethostname() + "_" + str(uuid.getnode())
-
-HWID = get_hwid()
 
 # ==================== HTML СТРАНИЦА АКТИВАЦИИ ====================
 ACTIVATE_HTML = '''
@@ -280,9 +247,9 @@ ACTIVATE_HTML = '''
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
                                     <span class="badge">OFDATA</span>
-                                    <span class="badge">Raidfind</span>
-                                    <span class="badge">RaidfindSoft</span>
                                     <span class="badge">Shodan</span>
+                                    <span class="badge">AbuseIPDB</span>
+                                    <span class="badge">BlackEye</span>
                                 </span>
                             </div>
                         </div>
@@ -322,7 +289,7 @@ ACTIVATE_HTML = '''
 </html>
 '''
 
-# ==================== ФУНКЦИИ АКТИВАЦИИ ====================
+# ==================== АКТИВАЦИЯ ====================
 @app.route('/activate')
 def activate_page():
     return render_template_string(ACTIVATE_HTML)
@@ -395,7 +362,6 @@ def check_api_key(api_key):
                 return True
     return False
 
-# ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query):
     query = query.strip()
     
@@ -426,7 +392,7 @@ def detect_type(query):
             return "company"
     return "username"
 
-# ==================== ПАРСЕРЫ ИСТОЧНИКОВ ====================
+# ==================== ПАРСЕРЫ ====================
 def search_atlas(query, search_type):
     params = {
         "token": ATLAS_TOKEN,
@@ -527,8 +493,8 @@ def search_ofdata(query, search_type):
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
-def search_shodan(query):
-    url = f"https://api.shodan.io/shodan/host/{query}?key={SHODAN_KEY}"
+def search_shodan(ip):
+    url = f"https://api.shodan.io/shodan/host/{ip}?key={SHODAN_KEY}"
     try:
         r = requests.get(url, timeout=15)
         if r.status_code == 200:
@@ -542,95 +508,77 @@ def search_shodan(query):
     except Exception as e:
         return {"source": "shodan", "error": str(e)}
 
-def search_raidfind(query, search_type):
+def search_abuseipdb(ip):
+    headers = {
+        "Key": ABUSEIPDB_KEY,
+        "Accept": "application/json"
+    }
+    params = {
+        "ipAddress": ip,
+        "maxAgeInDays": 90
+    }
+    
+    try:
+        r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10)
+        if r.status_code == 200:
+            data = r.json().get("data", {})
+            return {
+                "source": "abuseipdb",
+                "data": {
+                    "ip": data.get("ipAddress"),
+                    "country": data.get("countryCode"),
+                    "isp": data.get("isp"),
+                    "confidence": data.get("abuseConfidenceScore"),
+                    "reports": data.get("totalReports"),
+                    "last_report": data.get("lastReportedAt"),
+                    "categories": data.get("categories", [])
+                }
+            }
+        else:
+            return {"source": "abuseipdb", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "abuseipdb", "error": str(e)}
+
+# ==================== BLACKEYE (временно отключён) ====================
+BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "y06BzECXTqtOjzdIcTVQPw")
+BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
+
+def search_blackeye(query, search_type):
     type_map = {
         "phone": "phone",
         "email": "email",
         "fio": "fio",
-        "vk": "vk"
+        "vk": "vk",
+        "auto": "auto"
     }
     
     if search_type not in type_map:
-        return {"source": "raidfind", "error": "Raidfind не поддерживает этот тип"}
+        return {"source": "blackeye", "error": "Тип не поддерживается"}
     
     payload = {
-        "phone": query,
-        "mode": "premium",
-        "query_type": type_map[search_type]
+        "type": type_map[search_type],
+        "q": query,
+        "limit": 100
     }
-    try:
-        r = requests.post(RAIDFIND_URL, json=payload, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("ok"):
-                return {"source": "raidfind", "data": data}
-            else:
-                return {"source": "raidfind", "error": data.get("error", "Данных нет")}
-        else:
-            return {"source": "raidfind", "error": f"HTTP {r.status_code}"}
-    except requests.exceptions.Timeout:
-        return {"source": "raidfind", "error": "Таймаут"}
-    except Exception as e:
-        return {"source": "raidfind", "error": str(e)}
-
-def search_raidfind_new(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email",
-        "fio": "fio",
-        "vk": "vk"
+    headers = {
+        "Authorization": f"Bearer {BLACKEYE_TOKEN}",
+        "Content-Type": "application/json"
     }
     
-    if search_type not in type_map:
-        return {"source": "raidfind_new", "error": "Тип не поддерживается"}
-    
     try:
-        token_resp = requests.post(
-            RAIDFIND_NEW_TOKEN_URL,
-            json={"hwid": HWID},
-            headers={"User-Agent": "OSINTClient/2.0"},
-            timeout=10
-        )
-        
-        if token_resp.status_code != 200:
-            return {"source": "raidfind_new", "error": f"Не удалось получить токен: {token_resp.status_code}"}
-        
-        token_data = token_resp.json()
-        token = token_data.get("token")
-        
-        if not token:
-            return {"source": "raidfind_new", "error": "Токен не получен"}
-        
-        payload = {
-            "phone": query,
-            "query_type": type_map[search_type]
-        }
-        headers = {
-            "X-Auth-Token": token,
-            "User-Agent": "OSINTClient/2.0"
-        }
-        
-        r = requests.post(RAIDFIND_NEW_SEARCH_URL, json=payload, headers=headers, timeout=30)
-        
+        r = requests.post(BLACKEYE_URL, headers=headers, json=payload, timeout=30)
         if r.status_code == 200:
             data = r.json()
-            if data.get("ok"):
-                return {"source": "raidfind_new", "data": data}
+            if data:
+                return {"source": "blackeye", "data": data}
             else:
-                return {"source": "raidfind_new", "error": data.get("error", "Данных нет")}
-        elif r.status_code == 401:
-            return {"source": "raidfind_new", "error": "Токен устарел"}
-        elif r.status_code == 429:
-            return {"source": "raidfind_new", "error": "Лимит запросов (2 в минуту)"}
+                return {"source": "blackeye", "error": "Данных нет"}
         else:
-            return {"source": "raidfind_new", "error": f"HTTP {r.status_code}"}
-            
-    except requests.exceptions.Timeout:
-        return {"source": "raidfind_new", "error": "Таймаут"}
+            return {"source": "blackeye", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "raidfind_new", "error": str(e)}
+        return {"source": "blackeye", "error": str(e)}
 
-# ==================== ОСНОВНОЙ ПОИСК ====================
+# ==================== ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
     api_key = request.headers.get('X-API-Secret')
@@ -679,13 +627,13 @@ def search():
     if search_type == "ip":
         result["sources"].append(search_shodan(query))
     
-    # Raidfind — phone, email, fio
-    if search_type in ["phone", "email", "fio"]:
-        result["sources"].append(search_raidfind(query, search_type))
+    # AbuseIPDB — только ip
+    if search_type == "ip":
+        result["sources"].append(search_abuseipdb(query))
     
-    # RaidfindSoft (новый) — phone, email, fio
-    if search_type in ["phone", "email", "fio"]:
-        result["sources"].append(search_raidfind_new(query, search_type))
+    # BlackEye (временно отключён)
+    # if search_type in ["phone", "email", "fio", "auto", "vk"]:
+    #     result["sources"].append(search_blackeye(query, search_type))
     
     return jsonify(result)
 
@@ -712,7 +660,7 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Raidfind", "RaidfindSoft", "Shodan"],
+        "sources": ["Atlas", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "BlackEye"],
         "supported_types": {
             "phone": "Номер телефона",
             "email": "Email",
