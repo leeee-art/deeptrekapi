@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор + AI-досье + AI-чат + LeakOsint
+DeepTrek API v8.0 — OSINT-агрегатор + AI-досье + AI-чат + BigBase
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -39,6 +39,7 @@ OFDATA_KEY = os.getenv('OFDATA_KEY', "KBnpz1CHKNngFXxK")
 OFDATA_URL = "https://api.ofdata.ru/v2/search"
 
 SHODAN_KEY = os.getenv('SHODAN_KEY', "z6kC8mX9pL2qR0sT4uV7wY1zA3bD5eG8hJ0nM3pQ6sT9vW2yZ4cF7iJ1lN4oR7uX0zA3C5")
+SHODAN_URL = "https://api.shodan.io/shodan/host/"
 
 ABUSEIPDB_KEY = os.getenv('ABUSEIPDB_KEY', "58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581")
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
@@ -50,49 +51,15 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
-FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
+FUNSTAT_TOKEN = os.getenv('FUNSTAT_TOKEN', "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ")
 FUNSTAT_URL = "https://funstat.com/api/v1"
 
-RAIDFIND_NEW_URL = "https://anonymos.sbs"
-RAIDFIND_NEW_TOKEN_URL = f"{RAIDFIND_NEW_URL}/api/get_token"
-RAIDFIND_NEW_SEARCH_URL = f"{RAIDFIND_NEW_URL}/search"
-
-LEAKOSINT_KEY = "5292684123:AhZ9yf6F"
-LEAKOSINT_URL = "https://leakosintapi.com/"
+# ==================== BIGBASE ====================
+BIGBASE_KEY = "2ri7MOkV2AHr_1yFiHSYRuJfE339v2ca"
+BIGBASE_URL = "https://bigbase.top/api/search"
 
 subscriptions = {}
 api_keys = {}
-
-# ==================== HWID ДЛЯ RAIDFINDSOFT ====================
-def get_hwid():
-    try:
-        mac = uuid.getnode()
-        mac_str = f"{mac:012x}"
-        host = platform.node()
-        username = getpass.getuser()
-        try:
-            if sys.platform == 'win32':
-                result = subprocess.run(['vol', 'C:'], capture_output=True, text=True, shell=True)
-                for line in result.stdout.splitlines():
-                    if 'Serial Number' in line:
-                        serial = line.split('is')[-1].strip().replace('-', '')
-                        break
-                else:
-                    serial = "UNKNOWN"
-            else:
-                try:
-                    with open('/etc/machine-id', 'r') as f:
-                        serial = f.read().strip()
-                except:
-                    serial = platform.node()
-        except:
-            serial = "UNKNOWN"
-        combined = f"{mac_str}_{host}_{username}_{serial}"
-        return hashlib.sha256(combined.encode()).hexdigest()[:50]
-    except Exception:
-        return socket.gethostname() + "_" + str(uuid.getnode())
-
-HWID = get_hwid()
 
 # ==================== HTML СТРАНИЦА АКТИВАЦИИ ====================
 ACTIVATE_HTML = '''
@@ -294,8 +261,7 @@ ACTIVATE_HTML = '''
                                     <span class="badge">AbuseIPDB</span>
                                     <span class="badge">Groq</span>
                                     <span class="badge">Funstat</span>
-                                    <span class="badge">RaidfindSoft</span>
-                                    <span class="badge">LeakOsint</span>
+                                    <span class="badge">BigBase</span>
                                     <span class="badge">BlackEye</span>
                                 </span>
                             </div>
@@ -440,7 +406,6 @@ def detect_type(query):
     return "username"
 
 # ==================== ПАРСЕРЫ ====================
-# АТЛАС ВРЕМЕННО ОТКЛЮЧЁН
 def search_atlas(query, search_type):
     return {"source": "atlas", "error": "Временно недоступен"}
 
@@ -532,7 +497,7 @@ def search_ofdata(query, search_type):
         return {"source": "ofdata", "error": str(e)}
 
 def search_shodan(ip):
-    url = f"https://api.shodan.io/shodan/host/{ip}?key={SHODAN_KEY}"
+    url = f"{SHODAN_URL}{ip}?key={SHODAN_KEY}"
     try:
         r = requests.get(url, timeout=15)
         if r.status_code == 200:
@@ -665,87 +630,43 @@ def search_funstat(query, search_type):
     except Exception as e:
         return {"source": "funstat", "error": str(e)}
 
-# ==================== RAIDFINDSOFT ====================
-def search_raidfind_new(query, search_type):
+# ==================== BIGBASE ====================
+def search_bigbase(query, search_type):
+    """
+    Поиск через BigBase API
+    Поддерживает: phone, email, fio, auto, inn, passport, ip
+    """
     type_map = {
         "phone": "phone",
         "email": "email",
         "fio": "fio",
-        "vk": "vk"
+        "auto": "auto",
+        "inn": "inn",
+        "passport": "passport",
+        "ip": "ip"
     }
     
     if search_type not in type_map:
-        return {"source": "raidfind_new", "error": "Тип не поддерживается"}
+        return {"source": "bigbase", "error": "Тип не поддерживается"}
     
-    try:
-        token_resp = requests.post(
-            RAIDFIND_NEW_TOKEN_URL,
-            json={"hwid": HWID},
-            headers={"User-Agent": "OSINTClient/2.0"},
-            timeout=10
-        )
-        
-        if token_resp.status_code != 200:
-            return {"source": "raidfind_new", "error": f"Не удалось получить токен: {token_resp.status_code}"}
-        
-        token_data = token_resp.json()
-        token = token_data.get("token")
-        
-        if not token:
-            return {"source": "raidfind_new", "error": "Токен не получен"}
-        
-        payload = {
-            "phone": query,
-            "query_type": type_map[search_type]
-        }
-        headers = {
-            "X-Auth-Token": token,
-            "User-Agent": "OSINTClient/2.0"
-        }
-        
-        r = requests.post(RAIDFIND_NEW_SEARCH_URL, json=payload, headers=headers, timeout=30)
-        
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("ok"):
-                return {"source": "raidfind_new", "data": data}
-            else:
-                return {"source": "raidfind_new", "error": data.get("error", "Данных нет")}
-        elif r.status_code == 401:
-            return {"source": "raidfind_new", "error": "Токен устарел"}
-        elif r.status_code == 429:
-            return {"source": "raidfind_new", "error": "Лимит запросов (2 в минуту)"}
-        else:
-            return {"source": "raidfind_new", "error": f"HTTP {r.status_code}"}
-            
-    except requests.exceptions.Timeout:
-        return {"source": "raidfind_new", "error": "Таймаут"}
-    except Exception as e:
-        return {"source": "raidfind_new", "error": str(e)}
-
-# ==================== LEAKOSINT ====================
-def search_leakosint(query, search_type, limit=100):
-    """
-    Поиск через LeakOsint API
-    Поддерживает: phone, email, fio, auto, inn, passport, ip, vk, telegram
-    """
-    data = {
-        "token": LEAKOSINT_KEY,
-        "request": query,
-        "limit": limit,
-        "lang": "ru",
-        "type": "json"
+    headers = {
+        "Authorization": BIGBASE_KEY,
+        "Content-Type": "application/json"
     }
+    data = {"search": query, "page": 1}
     
     try:
-        r = requests.post(LEAKOSINT_URL, json=data, timeout=30)
+        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
         if r.status_code == 200:
             result = r.json()
-            return {"source": "leakosint", "data": result}
+            # Скрываем api_token в ответе
+            if "user" in result and "api_token" in result["user"]:
+                result["user"]["api_token"] = "***СКРЫТО***"
+            return {"source": "bigbase", "data": result}
         else:
-            return {"source": "leakosint", "error": f"HTTP {r.status_code}: {r.text[:200]}"}
+            return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "leakosint", "error": str(e)}
+        return {"source": "bigbase", "error": str(e)}
 
 # ==================== БЛЭК АЙ (ВРЕМЕННО ОТКЛЮЧЁН) ====================
 BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "y06BzECXTqtOjzdIcTVQPw")
@@ -802,7 +723,7 @@ def search():
         "sources": []
     }
     
-    # Атлас временно отключён
+    # АТЛАС ВРЕМЕННО ОТКЛЮЧЁН
     # result["sources"].append(search_atlas(query, search_type))
     
     if search_type == "vk":
@@ -824,12 +745,9 @@ def search():
     if search_type == "telegram" and query.isdigit():
         result["sources"].append(search_funstat(query, search_type))
     
-    if search_type in ["phone", "email", "fio", "vk"]:
-        result["sources"].append(search_raidfind_new(query, search_type))
-    
-    # LeakOsint — почти всё
-    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip", "vk", "telegram"]:
-        result["sources"].append(search_leakosint(query, search_type))
+    # BIGBASE — основной источник
+    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
+        result["sources"].append(search_bigbase(query, search_type))
     
     raw_data = {
         "query": query,
@@ -884,7 +802,7 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор + AI-досье + AI-чат + LeakOsint",
+        "description": "OSINT-агрегатор + AI-досье + AI-чат + BigBase",
         "author": "@kmyfg",
         "endpoints": {
             "/search": "POST - поиск + досье (нужен X-API-Secret)",
@@ -893,7 +811,7 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Groq", "Funstat", "RaidfindSoft", "LeakOsint", "BlackEye"],
+        "sources": ["Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Groq", "Funstat", "BigBase", "BlackEye"],
         "features": {
             "search": "Поиск по 12 типам запросов",
             "dossier": "Автоматическое формирование досье через AI",
