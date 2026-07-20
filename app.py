@@ -778,8 +778,8 @@ def search():
         result["sources"].append(search_bigbase(query, search_type))
     
     # ANYSCAN
-    if search_type in ["phone", "email", "fio", "auto", "vk"]:
-        result["sources"].append(search_anyscan(query, search_type))
+    #if search_type in ["phone", "email", "fio", "auto", "vk"]:
+        #result["sources"].append(search_anyscan(query, search_type))
     
     raw_data = {
         "query": query,
