@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор + AI-досье + AI-чат + BigBase
+DeepTrek API v8.0 — OSINT-агрегатор + AI-досье + AI-чат
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -26,6 +26,7 @@ app = Flask(__name__)
 CORS(app)
 
 # ==================== КОНФИГ ====================
+# Атлас ВРЕМЕННО ОТКЛЮЧЁН
 ATLAS_TOKEN = os.getenv('ATLAS_TOKEN', "sub_1tme688x58j6v3s03jhc9nvh")
 ATLAS_URL = "https://atlas-in.cc/app"
 
@@ -57,6 +58,10 @@ FUNSTAT_URL = "https://funstat.com/api/v1"
 # ==================== BIGBASE ====================
 BIGBASE_KEY = "2ri7MOkV2AHr_1yFiHSYRuJfE339v2ca"
 BIGBASE_URL = "https://bigbase.top/api/search"
+
+# ==================== ANYSCAN (бывший BlackEye) ====================
+ANYSCAN_TOKEN = "ZJM_KBGiPnxYSLirJo6VZA"
+ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 subscriptions = {}
 api_keys = {}
@@ -253,6 +258,8 @@ ACTIVATE_HTML = '''
                             <div class="info-row">
                                 <span class="info-label">📦 Источники</span>
                                 <span class="info-value">
+                                    <span class="badge">BigBase</span>
+                                    <span class="badge">AnyScan</span>
                                     <span class="badge">Snusbase</span>
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
@@ -261,7 +268,6 @@ ACTIVATE_HTML = '''
                                     <span class="badge">AbuseIPDB</span>
                                     <span class="badge">Groq</span>
                                     <span class="badge">Funstat</span>
-                                    <span class="badge">BigBase</span>
                                     <span class="badge">BlackEye</span>
                                 </span>
                             </div>
@@ -632,10 +638,6 @@ def search_funstat(query, search_type):
 
 # ==================== BIGBASE ====================
 def search_bigbase(query, search_type):
-    """
-    Поиск через BigBase API
-    Поддерживает: phone, email, fio, auto, inn, passport, ip
-    """
     type_map = {
         "phone": "phone",
         "email": "email",
@@ -659,7 +661,6 @@ def search_bigbase(query, search_type):
         r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
         if r.status_code == 200:
             result = r.json()
-            # Скрываем api_token в ответе
             if "user" in result and "api_token" in result["user"]:
                 result["user"]["api_token"] = "***СКРЫТО***"
             return {"source": "bigbase", "data": result}
@@ -668,12 +669,41 @@ def search_bigbase(query, search_type):
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
-# ==================== БЛЭК АЙ (ВРЕМЕННО ОТКЛЮЧЁН) ====================
-BLACKEYE_TOKEN = os.getenv('BLACKEYE_TOKEN', "y06BzECXTqtOjzdIcTVQPw")
-BLACKEYE_URL = "https://blackeyebot.duckdns.org/api/v1/search"
-
-def search_blackeye(query, search_type):
-    return {"source": "blackeye", "error": "Временно недоступен"}
+# ==================== ANYSCAN (бывший BlackEye) ====================
+def search_anyscan(query, search_type):
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "auto": "auto",
+        "vk": "vk"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "anyscan", "error": "Тип не поддерживается"}
+    
+    headers = {
+        "Authorization": f"Bearer {ANYSCAN_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "type": type_map[search_type],
+        "q": query,
+        "limit": 100
+    }
+    
+    try:
+        r = requests.post(ANYSCAN_URL, headers=headers, json=data, timeout=30, verify=False)
+        if r.status_code == 200:
+            result = r.json()
+            if result.get("ok"):
+                return {"source": "anyscan", "data": result}
+            else:
+                return {"source": "anyscan", "error": result.get("error", "Данных нет")}
+        else:
+            return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "anyscan", "error": str(e)}
 
 # ==================== ФУНКЦИЯ ДЛЯ ДОСЬЕ ====================
 def generate_dossier(raw_data):
@@ -681,19 +711,17 @@ def generate_dossier(raw_data):
 Помоги собрать досье. Все данные получены из OSINT-источников.
 
 Сырые данные:
-{json.dumps(raw_data, ensure_ascii=False, indent=2)}
+{json.dumps(raw_data, ensure_ascii=False, indent=2)[:4000]}
 
 Сформируй структурированное досье по следующим разделам:
 1. Основная информация (ФИО, дата рождения, телефон, email)
 2. Адреса и регионы
 3. Паспортные данные (если есть)
-4. Аккаунты в соцсетях (VK, Telegram и др.)
-5. IP-адреса и техническая информация
-6. Утечки и базы данных
-7. Компании и ИНН (если есть)
-8. Выводы и риски
+4. Аккаунты в соцсетях
+5. Утечки и базы данных
+6. Выводы
 
-Отвечай на русском языке. Если данные отсутствуют — пиши "Нет данных".
+Отвечай на русском языке. Если данных нет — пиши "Нет данных".
 """
     return search_groq(prompt)
 
@@ -745,9 +773,13 @@ def search():
     if search_type == "telegram" and query.isdigit():
         result["sources"].append(search_funstat(query, search_type))
     
-    # BIGBASE — основной источник
+    # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         result["sources"].append(search_bigbase(query, search_type))
+    
+    # ANYSCAN
+    if search_type in ["phone", "email", "fio", "auto", "vk"]:
+        result["sources"].append(search_anyscan(query, search_type))
     
     raw_data = {
         "query": query,
@@ -802,7 +834,7 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор + AI-досье + AI-чат + BigBase",
+        "description": "OSINT-агрегатор + AI-досье + AI-чат",
         "author": "@kmyfg",
         "endpoints": {
             "/search": "POST - поиск + досье (нужен X-API-Secret)",
@@ -811,7 +843,7 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Groq", "Funstat", "BigBase", "BlackEye"],
+        "sources": ["BigBase", "AnyScan", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Groq", "Funstat", "BlackEye"],
         "features": {
             "search": "Поиск по 12 типам запросов",
             "dossier": "Автоматическое формирование досье через AI",
