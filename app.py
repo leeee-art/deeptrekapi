@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор + AI-досье + AI-чат
+DeepTrek API v8.0 — OSINT-агрегатор
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -13,20 +13,13 @@ import csv
 import io
 import secrets
 import os
-import sys
-import hashlib
-import uuid
-import platform
-import getpass
-import subprocess
-import socket
 from datetime import datetime, timedelta
+from funstat_api import FunstatClient
 
 app = Flask(__name__)
 CORS(app)
 
 # ==================== КОНФИГ ====================
-# Атлас ВРЕМЕННО ОТКЛЮЧЁН
 ATLAS_TOKEN = os.getenv('ATLAS_TOKEN', "sub_1tme688x58j6v3s03jhc9nvh")
 ATLAS_URL = "https://atlas-in.cc/app"
 
@@ -45,21 +38,16 @@ SHODAN_URL = "https://api.shodan.io/shodan/host/"
 ABUSEIPDB_KEY = os.getenv('ABUSEIPDB_KEY', "58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581")
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 
-GROQ_KEY = os.getenv('GROQ_KEY', "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")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
-
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
-FUNSTAT_TOKEN = os.getenv('FUNSTAT_TOKEN', "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ")
-FUNSTAT_URL = "https://funstat.com/api/v1"
+FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
 
 # ==================== BIGBASE ====================
 BIGBASE_KEY = "2ri7MOkV2AHr_1yFiHSYRuJfE339v2ca"
 BIGBASE_URL = "https://bigbase.top/api/search"
 
-# ==================== ANYSCAN (бывший BlackEye) ====================
+# ==================== ANYSCAN (ВРЕМЕННО ОТКЛЮЧЁН) ====================
 ANYSCAN_TOKEN = "ZJM_KBGiPnxYSLirJo6VZA"
 ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
@@ -259,16 +247,14 @@ ACTIVATE_HTML = '''
                                 <span class="info-label">📦 Источники</span>
                                 <span class="info-value">
                                     <span class="badge">BigBase</span>
-                                    <span class="badge">AnyScan</span>
                                     <span class="badge">Snusbase</span>
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
                                     <span class="badge">OFDATA</span>
                                     <span class="badge">Shodan</span>
                                     <span class="badge">AbuseIPDB</span>
-                                    <span class="badge">Groq</span>
                                     <span class="badge">Funstat</span>
-                                    <span class="badge">BlackEye</span>
+                                    <span class="badge">AnyScan</span>
                                 </span>
                             </div>
                         </div>
@@ -548,51 +534,6 @@ def search_abuseipdb(ip):
     except Exception as e:
         return {"source": "abuseipdb", "error": str(e)}
 
-def search_groq(prompt):
-    headers = {
-        "Authorization": f"Bearer {GROQ_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": GROQ_MODEL,
-        "messages": [
-            {"role": "system", "content": "Ты — OSINT-аналитик. На основе данных формируй структурированное досье. Отвечай на русском языке. Если данных нет — пиши 'Нет данных'."},
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": 1500,
-        "temperature": 0.3
-    }
-    
-    try:
-        r = requests.post(GROQ_URL, headers=headers, json=data, timeout=30)
-        if r.status_code == 200:
-            return {"source": "groq", "data": r.json()}
-        else:
-            return {"source": "groq", "error": f"HTTP {r.status_code}: {r.text[:100]}"}
-    except Exception as e:
-        return {"source": "groq", "error": str(e)}
-
-def chat_groq(messages, max_tokens=500):
-    headers = {
-        "Authorization": f"Bearer {GROQ_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": GROQ_MODEL,
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.7
-    }
-    
-    try:
-        r = requests.post(GROQ_URL, headers=headers, json=data, timeout=30)
-        if r.status_code == 200:
-            return {"ok": True, "data": r.json()}
-        else:
-            return {"ok": False, "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
 # ==================== FUNSTAT ====================
 def search_funstat(query, search_type):
     if search_type != "telegram":
@@ -601,38 +542,32 @@ def search_funstat(query, search_type):
     if not query.isdigit():
         return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
     
-    user_id = int(query)
-    url = f"{FUNSTAT_URL}/users/{user_id}/stats_min"
-    headers = {"Authorization": f"Bearer {FUNSTAT_TOKEN}"}
-    
     try:
-        r = requests.get(url, headers=headers, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("success"):
-                result = data.get("data", {})
-                return {
-                    "source": "funstat",
-                    "data": {
-                        "id": result.get("id"),
-                        "first_name": result.get("first_name"),
-                        "last_name": result.get("last_name"),
-                        "is_bot": result.get("is_bot"),
-                        "is_active": result.get("is_active"),
-                        "first_msg_date": result.get("first_msg_date"),
-                        "last_msg_date": result.get("last_msg_date"),
-                        "total_msg_count": result.get("total_msg_count"),
-                        "msg_in_groups_count": result.get("msg_in_groups_count"),
-                        "adm_in_groups": result.get("adm_in_groups"),
-                        "total_groups": result.get("total_groups"),
-                        "usernames_count": result.get("usernames_count"),
-                        "names_count": result.get("names_count")
-                    }
+        fs = FunstatClient(FUNSTAT_TOKEN)
+        stats = fs.stats_min(int(query))
+        
+        if stats.success:
+            data = stats.data
+            return {
+                "source": "funstat",
+                "data": {
+                    "id": data.id,
+                    "first_name": data.first_name,
+                    "last_name": data.last_name,
+                    "is_bot": data.is_bot,
+                    "is_active": data.is_active,
+                    "first_msg_date": data.first_msg_date,
+                    "last_msg_date": data.last_msg_date,
+                    "total_msg_count": data.total_msg_count,
+                    "msg_in_groups_count": data.msg_in_groups_count,
+                    "adm_in_groups": data.adm_in_groups,
+                    "total_groups": data.total_groups,
+                    "usernames_count": data.usernames_count,
+                    "names_count": data.names_count
                 }
-            else:
-                return {"source": "funstat", "error": "Пользователь не найден"}
+            }
         else:
-            return {"source": "funstat", "error": f"HTTP {r.status_code}"}
+            return {"source": "funstat", "error": "Пользователь не найден"}
     except Exception as e:
         return {"source": "funstat", "error": str(e)}
 
@@ -669,61 +604,9 @@ def search_bigbase(query, search_type):
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
-# ==================== ANYSCAN (бывший BlackEye) ====================
+# ==================== ANYSCAN (ВРЕМЕННО ОТКЛЮЧЁН) ====================
 def search_anyscan(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email",
-        "fio": "fio",
-        "auto": "auto",
-        "vk": "vk"
-    }
-    
-    if search_type not in type_map:
-        return {"source": "anyscan", "error": "Тип не поддерживается"}
-    
-    headers = {
-        "Authorization": f"Bearer {ANYSCAN_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "type": type_map[search_type],
-        "q": query,
-        "limit": 100
-    }
-    
-    try:
-        r = requests.post(ANYSCAN_URL, headers=headers, json=data, timeout=30, verify=False)
-        if r.status_code == 200:
-            result = r.json()
-            if result.get("ok"):
-                return {"source": "anyscan", "data": result}
-            else:
-                return {"source": "anyscan", "error": result.get("error", "Данных нет")}
-        else:
-            return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "anyscan", "error": str(e)}
-
-# ==================== ФУНКЦИЯ ДЛЯ ДОСЬЕ ====================
-def generate_dossier(raw_data):
-    prompt = f"""
-Помоги собрать досье. Все данные получены из OSINT-источников.
-
-Сырые данные:
-{json.dumps(raw_data, ensure_ascii=False, indent=2)[:4000]}
-
-Сформируй структурированное досье по следующим разделам:
-1. Основная информация (ФИО, дата рождения, телефон, email)
-2. Адреса и регионы
-3. Паспортные данные (если есть)
-4. Аккаунты в соцсетях
-5. Утечки и базы данных
-6. Выводы
-
-Отвечай на русском языке. Если данных нет — пиши "Нет данных".
-"""
-    return search_groq(prompt)
+    return {"source": "anyscan", "error": "Временно недоступен"}
 
 # ==================== ОСНОВНОЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
@@ -751,73 +634,48 @@ def search():
         "sources": []
     }
     
-    # АТЛАС ВРЕМЕННО ОТКЛЮЧЁН
-    # result["sources"].append(search_atlas(query, search_type))
-    
-    if search_type == "vk":
-        result["sources"].append(search_vk(query))
-    
-    if search_type in ["email", "fio", "ip"]:
-        result["sources"].append(search_snusbase(query, search_type))
-    
-    if search_type == "phone":
-        result["sources"].append(search_intelx(query))
-    
-    if search_type in ["inn", "ogrn", "fio", "company"]:
-        result["sources"].append(search_ofdata(query, search_type))
-    
-    if search_type == "ip":
-        result["sources"].append(search_shodan(query))
-        result["sources"].append(search_abuseipdb(query))
-    
-    if search_type == "telegram" and query.isdigit():
-        result["sources"].append(search_funstat(query, search_type))
-    
     # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         result["sources"].append(search_bigbase(query, search_type))
     
-    # ANYSCAN
-    #if search_type in ["phone", "email", "fio", "auto", "vk"]:
-        #result["sources"].append(search_anyscan(query, search_type))
+    # Snusbase (НЕ phone!)
+    if search_type in ["email", "fio", "ip"]:
+        result["sources"].append(search_snusbase(query, search_type))
     
-    raw_data = {
-        "query": query,
-        "type": search_type,
-        "timestamp": result["timestamp"],
-        "sources": result["sources"]
-    }
+    # IntelX
+    if search_type == "phone":
+        result["sources"].append(search_intelx(query))
     
-    dossier_result = generate_dossier(raw_data)
-    result["dossier"] = dossier_result
+    # VK
+    if search_type == "vk":
+        result["sources"].append(search_vk(query))
+    
+    # OFDATA
+    if search_type in ["inn", "ogrn", "fio", "company"]:
+        result["sources"].append(search_ofdata(query, search_type))
+    
+    # Shodan
+    if search_type == "ip":
+        result["sources"].append(search_shodan(query))
+    
+    # AbuseIPDB
+    if search_type == "ip":
+        result["sources"].append(search_abuseipdb(query))
+    
+    # Funstat
+    if search_type == "telegram" and query.isdigit():
+        result["sources"].append(search_funstat(query, search_type))
+    
+    # ANYSCAN ВРЕМЕННО ОТКЛЮЧЁН
+    # if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
+    #     result["sources"].append(search_anyscan(query, search_type))
     
     return jsonify(result)
 
-# ==================== AI-ЧАТ ====================
+# ==================== AI-ЧАТ (ВРЕМЕННО ОТКЛЮЧЁН) ====================
 @app.route('/chat', methods=['POST'])
 def chat():
-    api_key = request.headers.get('X-API-Secret')
-    if not check_api_key(api_key):
-        return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Нет данных"}), 400
-    
-    messages = data.get('messages', [])
-    max_tokens = data.get('max_tokens', 500)
-    
-    if not messages:
-        return jsonify({"error": "Нет сообщений"}), 400
-    
-    response = chat_groq(messages, max_tokens)
-    
-    if response.get("ok"):
-        result = response["data"]
-        content = result["choices"][0]["message"]["content"]
-        return jsonify({"response": content})
-    else:
-        return jsonify({"error": response.get("error", "Неизвестная ошибка")}), 500
+    return jsonify({"response": "❌ AI-чат временно отключён. Ведутся технические работы."}), 503
 
 # ==================== HEALTH ====================
 @app.route('/health')
@@ -834,21 +692,18 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор + AI-досье + AI-чат",
+        "description": "OSINT-агрегатор",
         "author": "@kmyfg",
         "endpoints": {
-            "/search": "POST - поиск + досье (нужен X-API-Secret)",
-            "/chat": "POST - AI-чат (нужен X-API-Secret)",
+            "/search": "POST - поиск (нужен X-API-Secret)",
+            "/chat": "POST - AI-чат (временно отключён)",
             "/activate": "GET - страница активации API",
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["BigBase", "AnyScan", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Groq", "Funstat", "BlackEye"],
+        "sources": ["BigBase", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Funstat", "AnyScan"],
         "features": {
-            "search": "Поиск по 12 типам запросов",
-            "dossier": "Автоматическое формирование досье через AI",
-            "chat": "AI-чат с поддержкой истории диалога",
-            "funstat": "Бесплатная статистика по Telegram ID"
+            "search": "Поиск по 12 типам запросов"
         }
     })
 
