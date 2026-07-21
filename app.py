@@ -667,8 +667,9 @@ def search():
         result["sources"].append(search_funstat(query, search_type))
     
     # ANYSCAN ВРЕМЕННО ОТКЛЮЧЁН
-    # if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
-    #     result["sources"].append(search_anyscan(query, search_type))
+     if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
+       result["sources"].append(search_anyscan(query, search_type))
+    #   result["sources"].append(search_anyscan(query, search_type))
     
     return jsonify(result)
 
