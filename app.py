@@ -41,14 +41,14 @@ ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 MASTER_KEY = os.getenv('MASTER_KEY', "deeptrek_fjnrndhfrb2947472992gdvsbdh")
 SOFTWARE_PASSWORD = "SOFTWAREDEEPTREKADMIN"
 
-FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
+FUNSTAT_TOKEN = os.getenv('FUNSTAT_TOKEN', "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ")
 
 # ==================== BIGBASE ====================
 BIGBASE_KEY = "2ri7MOkV2AHr_1yFiHSYRuJfE339v2ca"
 BIGBASE_URL = "https://bigbase.top/api/search"
 
-# ==================== ANYSCAN (ВРЕМЕННО ОТКЛЮЧЁН) ====================
-ANYSCAN_TOKEN = "ZJM_KBGiPnxYSLirJo6VZA"
+# ==================== ANYSCAN ====================
+ANYSCAN_TOKEN = "vo1rGCZx4ZxTWDqquB3fiA"
 ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 subscriptions = {}
@@ -247,6 +247,7 @@ ACTIVATE_HTML = '''
                                 <span class="info-label">📦 Источники</span>
                                 <span class="info-value">
                                     <span class="badge">BigBase</span>
+                                    <span class="badge">AnyScan</span>
                                     <span class="badge">Snusbase</span>
                                     <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
@@ -254,7 +255,6 @@ ACTIVATE_HTML = '''
                                     <span class="badge">Shodan</span>
                                     <span class="badge">AbuseIPDB</span>
                                     <span class="badge">Funstat</span>
-                                    <span class="badge">AnyScan</span>
                                 </span>
                             </div>
                         </div>
@@ -604,9 +604,46 @@ def search_bigbase(query, search_type):
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
-# ==================== ANYSCAN (ВРЕМЕННО ОТКЛЮЧЁН) ====================
+# ==================== ANYSCAN ====================
 def search_anyscan(query, search_type):
-    return {"source": "anyscan", "error": "Временно недоступен"}
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "auto": "auto",
+        "vk": "vk",
+        "telegram": "telegram",
+        "ip": "ip",
+        "inn": "inn",
+        "snils": "snils",
+        "passport": "passport"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "anyscan", "error": "Тип не поддерживается"}
+    
+    headers = {
+        "Authorization": f"Bearer {ANYSCAN_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "type": type_map[search_type],
+        "q": query,
+        "limit": 100
+    }
+    
+    try:
+        r = requests.post(ANYSCAN_URL, headers=headers, json=data, timeout=30, verify=False)
+        if r.status_code == 200:
+            result = r.json()
+            if result.get("ok"):
+                return {"source": "anyscan", "data": result}
+            else:
+                return {"source": "anyscan", "error": result.get("error", "Данных нет")}
+        else:
+            return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "anyscan", "error": str(e)}
 
 # ==================== ОСНОВНОЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
@@ -633,6 +670,10 @@ def search():
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
+    
+    # ANYSCAN
+    if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
+        result["sources"].append(search_anyscan(query, search_type))
     
     # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
@@ -666,11 +707,6 @@ def search():
     if search_type == "telegram" and query.isdigit():
         result["sources"].append(search_funstat(query, search_type))
     
-    # ANYSCAN ВРЕМЕННО ОТКЛЮЧЁН
-     if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
-       result["sources"].append(search_anyscan(query, search_type))
-    #   result["sources"].append(search_anyscan(query, search_type))
-    
     return jsonify(result)
 
 # ==================== AI-ЧАТ (ВРЕМЕННО ОТКЛЮЧЁН) ====================
@@ -702,11 +738,11 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["BigBase", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Funstat", "AnyScan"],
+        "sources": ["AnyScan", "BigBase", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Funstat"],
         "features": {
             "search": "Поиск по 12 типам запросов"
         }
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000) 
