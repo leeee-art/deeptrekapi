@@ -559,7 +559,10 @@ def search_anyscan(query, search_type):
         
         if r.status_code == 200:
             result = r.json()
-            return {"source": "anyscan", "data": result}
+            if isinstance(result, dict):
+                return {"source": "anyscan", "data": result}
+            else:
+                return {"source": "anyscan", "data": {"raw": str(result)}}
         elif r.status_code == 403:
             return {"source": "anyscan", "error": "Токен невалидный или IP в черном списке"}
         elif r.status_code == 429:
