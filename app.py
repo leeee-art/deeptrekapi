@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор (ТОЛЬКО BIGBASE)
+DeepTrek API v8.0 — OSINT-агрегатор (BigBase + Jitler)
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -445,7 +445,90 @@ def search_bigbase(query, search_type):
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
-# ==================== ОСНОВНОЙ ПОИСК (ТОЛЬКО BIGBASE) ====================
+# ==================== JITLER ====================
+def search_jitler(query, search_type, max_wait=60):
+    type_map = {
+        "phone": "number",
+        "telegram": "sherlock",
+        "vk": "vks"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "jitler", "error": "Тип не поддерживается"}
+    
+    jitler_type = type_map[search_type]
+    
+    url = f"{JITLER_URL}/search"
+    headers = {
+        "Authorization": f"Bearer {JITLER_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "type": jitler_type,
+        "query": query,
+        "page": 1
+    }
+    
+    try:
+        r = requests.post(url, headers=headers, json=data, timeout=30, verify=False)
+        if r.status_code != 200:
+            return {"source": "jitler", "error": f"HTTP {r.status_code}"}
+        
+        result = r.json()
+        if not result.get("result"):
+            return {"source": "jitler", "error": result.get("error", "Данных нет")}
+        
+        if "id" in result:
+            search_id = result["id"]
+            wait_time = 0
+            while wait_time < max_wait:
+                time.sleep(3)
+                wait_time += 3
+                
+                r2 = requests.get(
+                    f"{JITLER_URL}/search/{search_id}",
+                    headers={"Authorization": f"Bearer {JITLER_TOKEN}"},
+                    timeout=30,
+                    verify=False
+                )
+                
+                if r2.status_code == 200:
+                    data2 = r2.json()
+                    if data2.get("response") == []:
+                        return {"source": "jitler", "error": "Данных нет"}
+                    
+                    if isinstance(data2.get("response"), str):
+                        return {
+                            "source": "jitler",
+                            "data": {
+                                "raw": data2["response"]
+                            }
+                        }
+                    return {"source": "jitler", "data": data2}
+                    
+                elif r2.status_code == 501:
+                    continue
+                else:
+                    return {"source": "jitler", "error": f"HTTP {r2.status_code}"}
+            
+            return {"source": "jitler", "error": "Таймаут"}
+        else:
+            if result.get("response") == []:
+                return {"source": "jitler", "error": "Данных нет"}
+            
+            if isinstance(result.get("response"), str):
+                return {
+                    "source": "jitler",
+                    "data": {
+                        "raw": result["response"]
+                    }
+                }
+            return {"source": "jitler", "data": result}
+            
+    except Exception as e:
+        return {"source": "jitler", "error": str(e)}
+
+# ==================== ОСНОВНОЙ ПОИСК (BigBase + Jitler) ====================
 @app.route('/search', methods=['POST'])
 def search():
     try:
@@ -472,7 +555,7 @@ def search():
             "sources": []
         }
         
-        # ===== ТОЛЬКО BIGBASE =====
+        # ===== BIGBASE =====
         if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
             try:
                 res = search_bigbase(query, search_type)
@@ -480,6 +563,15 @@ def search():
             except Exception as e:
                 logger.error(f"BigBase error: {e}")
                 result["sources"].append({"source": "bigbase", "error": str(e)})
+        
+        # ===== JITLER =====
+        if search_type in ["phone", "vk", "telegram"]:
+            try:
+                res = search_jitler(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"Jitler error: {e}")
+                result["sources"].append({"source": "jitler", "error": str(e)})
         
         return jsonify(result)
         
@@ -504,15 +596,15 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор (ТОЛЬКО BIGBASE)",
+        "description": "OSINT-агрегатор (BigBase + Jitler)",
         "author": "@kmyfg",
         "endpoints": {
-            "/search": "POST - поиск (ТОЛЬКО BIGBASE)",
+            "/search": "POST - поиск (BigBase + Jitler)",
             "/activate": "GET - страница активации API",
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["BigBase"],
+        "sources": ["BigBase", "Jitler"],
         "features": {
             "search": "Поиск по 12 типам запросов"
         }
