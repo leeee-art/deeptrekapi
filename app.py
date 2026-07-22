@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор + AI (GitHub Models) + Dossier
+DeepTrek API v8.0 — OSINT-агрегатор (БЕЗ AI)
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -55,25 +55,6 @@ JITLER_URL = "https://api.jitler.top"
 # ==================== ANYSCAN ====================
 ANYSCAN_TOKEN = os.getenv('ANYSCAN_TOKEN', "oxYKwwEN2kvMyG7advJ3DQ")
 ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
-
-# ==================== GITHUB MODELS AI ====================
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', "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")
-GITHUB_URL = "https://models.github.ai/inference/chat/completions"
-
-# ==================== ТОЛЬКО РАБОТАЮЩИЕ МОДЕЛИ ====================
-AVAILABLE_MODELS = {
-    # OpenAI
-    "gpt-4.1": "openai/gpt-4.1",
-    "gpt-4o": "openai/gpt-4o",
-    "gpt-4o-mini": "openai/gpt-4o-mini",
-    
-    # Microsoft
-    "phi-4-multimodal": "microsoft/phi-4-multimodal-instruct",
-    
-    # Mistral
-    "codestral-2501": "mistral-ai/codestral-2501",
-    "mistral-small-2503": "mistral-ai/mistral-small-2503"
-}
 
 subscriptions = {}
 api_keys = {}
@@ -281,28 +262,16 @@ ACTIVATE_HTML = '''
                                 </span>
                             </div>
                             <div class="info-row">
-                                <span class="info-label">🧠 AI-модели</span>
-                                <span class="info-value">
-                                    <span class="badge">GPT-4.1</span>
-                                    <span class="badge">GPT-4o</span>
-                                    <span class="badge">GPT-4o-mini</span>
-                                    <span class="badge">Phi-4-multimodal</span>
-                                    <span class="badge">Codestral</span>
-                                    <span class="badge">Mistral-Small</span>
-                                </span>
-                            </div>
-                            <div class="info-row">
                                 <span class="info-label">📋 Режимы поиска</span>
                                 <span class="info-value">
                                     <span class="badge">🔍 search</span>
-                                    <span class="badge">📄 dossier</span>
                                 </span>
                             </div>
                         </div>
                         
                         <div style="margin: 15px 0; padding: 12px; background: #1a1a3a; border-radius: 8px; border-left: 3px solid #a855f7;">
-                            <div style="color: #888; font-size: 13px; font-weight: 600; margin-bottom: 5px;">📌 Пример запроса с досье</div>
-                            <div class="code-box">curl -X POST https://deeptrekapi.onrender.com/search \\<br>  -H "Content-Type: application/json" \\<br>  -H "X-API-Secret: ${data.api_key}" \\<br>  -d '{"query": "+79233756070", "type": "phone", "mode": "dossier", "model": "gpt-4.1"}'</div>
+                            <div style="color: #888; font-size: 13px; font-weight: 600; margin-bottom: 5px;">📌 Пример запроса</div>
+                            <div class="code-box">curl -X POST https://deeptrekapi.onrender.com/search \\<br>  -H "Content-Type: application/json" \\<br>  -H "X-API-Secret: ${data.api_key}" \\<br>  -d '{"query": "+79233756070", "type": "phone"}'</div>
                         </div>
                         
                         <div style="margin: 15px 0; padding: 12px; background: #1a1a3a; border-radius: 8px; border-left: 3px solid #51cf66;">
@@ -740,159 +709,7 @@ def search_anyscan(query, search_type):
     except Exception as e:
         return {"source": "anyscan", "error": str(e)}
 
-# ==================== GITHUB MODELS AI ====================
-def chat_github(prompt, model, system_prompt=None, max_tokens=500, temperature=0.7):
-    """Отправка запроса к GitHub Models API"""
-    
-    if model not in AVAILABLE_MODELS:
-        return {
-            "success": False,
-            "error": f"Модель '{model}' не найдена. Доступные: {', '.join(list(AVAILABLE_MODELS.keys()))}"
-        }
-    
-    model_full = AVAILABLE_MODELS[model]
-    
-    headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
-    
-    data = {
-        "model": model_full,
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": temperature
-    }
-    
-    try:
-        r = requests.post(GITHUB_URL, headers=headers, json=data, timeout=120, verify=False)
-        
-        if r.status_code == 200:
-            result = r.json()
-            return {
-                "success": True,
-                "response": result["choices"][0]["message"]["content"],
-                "model": model,
-                "model_full": model_full,
-                "usage": result.get("usage", {})
-            }
-        else:
-            return {
-                "success": False,
-                "error": f"HTTP {r.status_code}: {r.text[:200]}"
-            }
-    except requests.exceptions.Timeout:
-        return {"success": False, "error": "Таймаут 120 сек"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# ==================== ГЕНЕРАЦИЯ ДОСЬЕ ====================
-def generate_dossier(query, search_type, sources, model="gpt-4.1"):
-    """
-    Генерирует OSINT-досье на основе собранных данных
-    """
-    
-    # Формируем промпт для AI
-    system_prompt = """Ты — профессиональный OSINT-аналитик. 
-    Твоя задача — составить структурированное досье на человека на основе данных из открытых источников.
-    Отвечай ТОЛЬКО на русском языке.
-    Будь максимально объективен, не додумывай то, чего нет в данных.
-    Используй строгую структуру досье."""
-    
-    prompt = f"""Составь подробное OSINT-досье на основе этих данных.
-
-Запрос: {query}
-Тип поиска: {search_type}
-
-Данные из источников:
-{json.dumps(sources, indent=2, ensure_ascii=False)}
-
-Структура досье (выведи как ТЕКСТ с четкими разделами):
-
-==================================================
-📋 OSINT-ДОСЬЕ
-==================================================
-
-👤 ЛИЧНАЯ ИНФОРМАЦИЯ
-• ФИО:
-• Дата рождения:
-• Возраст:
-• Пол:
-• Гражданство:
-
-📞 КОНТАКТЫ
-• Телефоны:
-• Email-адреса:
-• Социальные сети:
-
-💳 ФИНАНСЫ
-• Банковские карты:
-• Долги (ФССП):
-• Микрозаймы:
-
-📄 ДОКУМЕНТЫ
-• ИНН:
-• СНИЛС:
-• Паспорт:
-• Водительское удостоверение:
-
-📍 АДРЕСА
-• Адреса регистрации:
-• Адреса проживания:
-
-🏢 РАБОТА И ОБРАЗОВАНИЕ
-• Место работы:
-• Должность:
-• Образование:
-
-👨‍👩‍👧‍👦 СОЦИАЛЬНЫЙ ПОРТРЕТ
-• Семейное положение:
-• Дети:
-• Хобби:
-
-⚠️ РИСКИ И УЯЗВИМОСТИ
-• Судимости:
-• Утечки данных:
-• Потенциальные угрозы:
-
-📊 ВЫВОДЫ
-• Краткое резюме по человеку
-• Рекомендации
-
-🔗 СВЯЗИ
-• Связанные люди:
-• Связанные организации:
-
-==================================================
-
-Внимание:
-- Если данных нет — пиши "Нет данных".
-- Не придумывай то, чего нет в предоставленных данных.
-- Структуру строго соблюдай.
-- Пиши только на русском языке."""
-    
-    # Отправляем запрос к GitHub Models
-    result = chat_github(prompt, model, system_prompt, max_tokens=1500, temperature=0.3)
-    
-    if result.get("success"):
-        return {
-            "status": "ok",
-            "dossier_text": result["response"],
-            "model": result["model"],
-            "usage": result.get("usage", {})
-        }
-    else:
-        return {
-            "status": "error",
-            "error": result.get("error", "Ошибка генерации досье")
-        }
-
-# ==================== ЭНДПОИНТ /SEARCH (с режимом DOSSIER) ====================
+# ==================== ОСНОВНОЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
     api_key = request.headers.get('X-API-Secret')
@@ -911,28 +728,12 @@ def search():
     if not search_type:
         search_type = detect_type(query)
     
-    # ===== РЕЖИМ =====
-    mode = data.get('mode', 'search')  # search | dossier
-    model = data.get('model', 'gpt-4.1')  # модель для досье
-    
-    if mode not in ['search', 'dossier']:
-        return jsonify({"error": "Режим должен быть 'search' или 'dossier'"}), 400
-    
-    if mode == 'dossier' and model not in AVAILABLE_MODELS:
-        return jsonify({
-            "error": f"Модель '{model}' не поддерживается",
-            "available_models": list(AVAILABLE_MODELS.keys())
-        }), 400
-    
     result = {
         "query": query,
         "type": search_type,
-        "mode": mode,
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
-    
-    # ===== СБОР ДАННЫХ =====
     
     # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
@@ -990,82 +791,7 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "anyscan", "error": str(e)})
     
-    # ===== ЕСЛИ РЕЖИМ DOSSIER — ГЕНЕРИРУЕМ ДОСЬЕ =====
-    if mode == "dossier":
-        dossier_result = generate_dossier(query, search_type, result["sources"], model)
-        result["dossier"] = dossier_result
-    
     return jsonify(result)
-
-# ==================== ЭНДПОИНТ /CHAT ====================
-@app.route('/chat', methods=['POST'])
-def chat():
-    api_key = request.headers.get('X-API-Secret')
-    if not check_api_key(api_key):
-        return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Нет данных"}), 400
-    
-    prompt = data.get('prompt', '').strip()
-    if not prompt:
-        return jsonify({"error": "Пустой запрос"}), 400
-    
-    model = data.get('model')
-    if not model:
-        model = request.args.get('model', 'gpt-4o')
-    
-    if model not in AVAILABLE_MODELS:
-        return jsonify({
-            "error": f"Модель '{model}' не поддерживается",
-            "available_models": list(AVAILABLE_MODELS.keys())
-        }), 400
-    
-    search_results = data.get('context', None)
-    
-    system_prompt = """Ты — AI-ассистент для анализа OSINT-данных. 
-    Ты помогаешь анализировать информацию из открытых источников: 
-    ФИО, телефоны, email, адреса, соцсети, утечки данных.
-    Отвечай на русском языке, структурированно и по делу.
-    Если в запросе есть данные из поиска — анализируй их и делай выводы."""
-    
-    if search_results:
-        full_prompt = f"""Данные для анализа:
-{json.dumps(search_results, indent=2, ensure_ascii=False)}
-
-Запрос пользователя: {prompt}"""
-    else:
-        full_prompt = prompt
-    
-    max_tokens = data.get('max_tokens', 500)
-    temperature = data.get('temperature', 0.7)
-    
-    result = chat_github(full_prompt, model, system_prompt, max_tokens, temperature)
-    
-    if result.get("success"):
-        return jsonify({
-            "status": "ok",
-            "response": result["response"],
-            "model": result["model"],
-            "model_full": result["model_full"],
-            "usage": result.get("usage", {})
-        })
-    else:
-        return jsonify({
-            "status": "error",
-            "error": result.get("error", "Неизвестная ошибка")
-        }), 503
-
-# ==================== ЭНДПОИНТ /MODELS ====================
-@app.route('/models', methods=['GET'])
-def list_models():
-    """Возвращает список всех доступных AI-моделей"""
-    return jsonify({
-        "status": "ok",
-        "models": AVAILABLE_MODELS,
-        "count": len(AVAILABLE_MODELS)
-    })
 
 # ==================== HEALTH ====================
 @app.route('/health')
@@ -1082,22 +808,17 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор + AI (GitHub Models) + Dossier",
+        "description": "OSINT-агрегатор (БЕЗ AI)",
         "author": "@kmyfg",
         "endpoints": {
-            "/search": "POST - поиск (режимы: search, dossier)",
-            "/chat": "POST - AI-чат (нужен X-API-Secret)",
-            "/models": "GET - список доступных AI-моделей",
+            "/search": "POST - поиск (нужен X-API-Secret)",
             "/activate": "GET - страница активации API",
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
         "sources": ["BigBase", "Jitler", "VK", "AbuseIPDB", "Funstat", "OFDATA", "IntelX", "AnyScan"],
-        "ai_models": list(AVAILABLE_MODELS.keys()),
         "features": {
-            "search": "Поиск по 12 типам запросов",
-            "dossier": "Автоматическое OSINT-досье",
-            "chat": "AI-анализ с выбором модели"
+            "search": "Поиск по 12 типам запросов"
         }
     })
 
