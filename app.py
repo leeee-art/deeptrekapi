@@ -507,8 +507,8 @@ def search():
     }
     
     # ANYSCAN
-    if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
-        result["sources"].append(search_anyscan(query, search_type))
+    #if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
+        #result["sources"].append(search_anyscan(query, search_type))
     
     # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
@@ -531,8 +531,8 @@ def search():
         result["sources"].append(search_ofdata(query, search_type))
     
     # Shodan
-    if search_type == "ip":
-        result["sources"].append(search_shodan(query))
+    #if search_type == "ip":
+        #result["sources"].append(search_shodan(query))
     
     # AbuseIPDB
     if search_type == "ip":
