@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор (БЕЗ AI)
+DeepTrek API v8.0 — OSINT-агрегатор (ТЕСТОВАЯ ВЕРСИЯ)
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -412,7 +412,7 @@ def detect_type(query):
             return "company"
     return "username"
 
-# ==================== ПАРСЕРЫ ====================
+# ==================== ПАРСЕРЫ (ВСЕ ОСТАВЛЕНЫ, НО НЕ ИСПОЛЬЗУЮТСЯ) ====================
 def search_atlas(query, search_type):
     return {"source": "atlas", "error": "Временно недоступен"}
 
@@ -534,7 +534,6 @@ def search_abuseipdb(ip):
     except Exception as e:
         return {"source": "abuseipdb", "error": str(e)}
 
-# ==================== FUNSTAT ====================
 def search_funstat(query, search_type):
     if search_type != "telegram":
         return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram"}
@@ -571,7 +570,6 @@ def search_funstat(query, search_type):
     except Exception as e:
         return {"source": "funstat", "error": str(e)}
 
-# ==================== BIGBASE ====================
 def search_bigbase(query, search_type):
     type_map = {
         "phone": "phone",
@@ -604,7 +602,6 @@ def search_bigbase(query, search_type):
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
-# ==================== JITLER ====================
 def search_jitler(query, search_type, max_wait=60):
     type_map = {
         "phone": "number",
@@ -656,7 +653,6 @@ def search_jitler(query, search_type, max_wait=60):
                     if data2.get("response") == []:
                         return {"source": "jitler", "error": "Данных нет"}
                     
-                    # ===== ГЛАВНЫЙ ФИКС =====
                     if isinstance(data2.get("response"), str):
                         return {
                             "source": "jitler",
@@ -676,7 +672,6 @@ def search_jitler(query, search_type, max_wait=60):
             if result.get("response") == []:
                 return {"source": "jitler", "error": "Данных нет"}
             
-            # ===== ГЛАВНЫЙ ФИКС =====
             if isinstance(result.get("response"), str):
                 return {
                     "source": "jitler",
@@ -689,7 +684,6 @@ def search_jitler(query, search_type, max_wait=60):
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
-# ==================== ANYSCAN ====================
 def search_anyscan(query, search_type):
     type_map = {
         "phone": "phone",
@@ -733,14 +727,14 @@ def search_anyscan(query, search_type):
     except Exception as e:
         return {"source": "anyscan", "error": str(e)}
 
-# ==================== ОСНОВНОЙ ПОИСК ====================
+# ==================== ОСНОВНОЙ ПОИСК (ТЕСТОВАЯ ВЕРСИЯ — БЕЗ ИСТОЧНИКОВ) ====================
 @app.route('/search', methods=['POST'])
 def search():
-    api_key = request.headers.get('X-API-Secret')
-    if not check_api_key(api_key):
-        return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
-    
     try:
+        api_key = request.headers.get('X-API-Secret')
+        if not check_api_key(api_key):
+            return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
+        
         data = request.get_json()
         if not data:
             return jsonify({"error": "Нет данных"}), 400
@@ -753,92 +747,20 @@ def search():
         if not search_type:
             search_type = detect_type(query)
         
-        result = {
+        # ===== ТЕСТ: возвращаем простой JSON без источников =====
+        return jsonify({
             "query": query,
             "type": search_type,
             "timestamp": datetime.now().isoformat(),
-            "sources": []
-        }
-        
-        # ===== СБОР ДАННЫХ =====
-        
-        # BIGBASE
-        if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
-            try:
-                res = search_bigbase(query, search_type)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"BigBase error: {e}")
-                result["sources"].append({"source": "bigbase", "error": str(e)})
-        
-        # JITLER
-        if search_type in ["phone", "vk", "telegram"]:
-            try:
-                res = search_jitler(query, search_type)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"Jitler error: {e}")
-                result["sources"].append({"source": "jitler", "error": str(e)})
-        
-        # VK
-        if search_type == "vk":
-            try:
-                res = search_vk(query)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"VK error: {e}")
-                result["sources"].append({"source": "vk", "error": str(e)})
-        
-        # ABUSEIPDB
-        if search_type == "ip":
-            try:
-                res = search_abuseipdb(query)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"AbuseIPDB error: {e}")
-                result["sources"].append({"source": "abuseipdb", "error": str(e)})
-        
-        # FUNSTAT
-        if search_type == "telegram" and query.isdigit():
-            try:
-                res = search_funstat(query, search_type)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"Funstat error: {e}")
-                result["sources"].append({"source": "funstat", "error": str(e)})
-        
-        # OFDATA
-        if search_type in ["inn", "ogrn", "fio", "company"]:
-            try:
-                res = search_ofdata(query, search_type)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"OFDATA error: {e}")
-                result["sources"].append({"source": "ofdata", "error": str(e)})
-        
-        # INTELX
-        if search_type == "phone":
-            try:
-                res = search_intelx(query)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"IntelX error: {e}")
-                result["sources"].append({"source": "intelx", "error": str(e)})
-        
-        # ANYSCAN
-        if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
-            try:
-                res = search_anyscan(query, search_type)
-                result["sources"].append(res)
-            except Exception as e:
-                logger.error(f"AnyScan error: {e}")
-                result["sources"].append({"source": "anyscan", "error": str(e)})
-        
-        return jsonify(result)
+            "sources": [],
+            "test": "API работает! Теперь включаем источники по одному."
+        })
         
     except Exception as e:
-        logger.error(f"Search error: {e}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_text = traceback.format_exc()
+        logger.error(f"Search error: {error_text}")
+        return jsonify({"error": error_text}), 500
 
 # ==================== HEALTH ====================
 @app.route('/health')
@@ -855,10 +777,10 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор (БЕЗ AI)",
+        "description": "OSINT-агрегатор (ТЕСТОВАЯ ВЕРСИЯ)",
         "author": "@kmyfg",
         "endpoints": {
-            "/search": "POST - поиск (нужен X-API-Secret)",
+            "/search": "POST - поиск (ТЕСТ, без источников)",
             "/activate": "GET - страница активации API",
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
