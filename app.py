@@ -547,8 +547,8 @@ def search_funstat(query, search_type):
                 "source": "funstat",
                 "data": {
                     "id": data.id,
-                    "first_name": data.first_name,
-                    "last_name": data.last_name,
+                    "first_name": data.first_name if data.first_name and data.first_name != "." else None,
+                    "last_name": data.last_name if data.last_name and data.last_name != "." else None,
                     "is_bot": data.is_bot,
                     "is_active": data.is_active,
                     "first_msg_date": data.first_msg_date,
@@ -734,6 +734,8 @@ def search():
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
+    
+    # ===== СБОР ДАННЫХ =====
     
     # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
