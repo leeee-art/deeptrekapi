@@ -48,10 +48,6 @@ FUNSTAT_TOKEN = os.getenv('FUNSTAT_TOKEN', "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9
 BIGBASE_KEY = "2ri7MOkV2AHr_1yFiHSYRuJfE339v2ca"
 BIGBASE_URL = "https://bigbase.top/api/search"
 
-# ==================== ANYSCAN ====================
-ANYSCAN_TOKEN = "vo1rGCZx4ZxTWDqquB3fiA"
-ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
-
 # ==================== JITLER ====================
 JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
 JITLER_URL = "https://api.jitler.top"
@@ -251,16 +247,13 @@ ACTIVATE_HTML = '''
                             <div class="info-row">
                                 <span class="info-label">📦 Источники</span>
                                 <span class="info-value">
-                                    <span class="badge">AnyScan</span>
                                     <span class="badge">BigBase</span>
                                     <span class="badge">Jitler</span>
-                                    <span class="badge">Snusbase</span>
-                                    <span class="badge">IntelX</span>
                                     <span class="badge">VK</span>
-                                    <span class="badge">OFDATA</span>
-                                    <span class="badge">Shodan</span>
                                     <span class="badge">AbuseIPDB</span>
                                     <span class="badge">Funstat</span>
+                                    <span class="badge">OFDATA</span>
+                                    <span class="badge">IntelX</span>
                                 </span>
                             </div>
                         </div>
@@ -409,13 +402,194 @@ def search_atlas(query, search_type):
 
 def search_snusbase(query, search_type):
     if search_type not in ["email", "fio", "ip"]:
-        return {"source": "snusbase", "error": "Snusbase не поддерживает этот tipo"}
+        return {"source": "snusbase", "error": "Snusbase не поддерживает этот тип"}
+    
+    snus_type = "ip" if search_type == "ip" else search_type
+    if search_type == "fio":
+        snus_type = "username"
+    
+    payload = {"terms": [query], "types": [snus_type], "wildcard": False}
+    headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
+    try:
+        r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30, verify=False)
+        return {"source": "snusbase", "data": r.json()} if r.status_code == 200 else {"source": "snusbase", "error": f"Код: {r.status_code}"}
+    except Exception as e:
+        return {"source": "snusbase", "error": str(e)}
 
+def search_intelx(phone):
+    phone = re.sub(r'\D', '', phone)
+    if len(phone) < 8:
+        return {"source": "intelx", "error": "Номер слишком короткий"}
+    
+    url = f"https://data.intelx.io/saverudata/db2/dbpn/{phone[:2]}/{phone[2:4]}/{phone[4:6]}/{phone[6:8]}.csv"
+    try:
+        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10, verify=False)
+        if r.status_code == 200:
+            reader = csv.reader(io.StringIO(r.text))
+            rows = list(reader)
+            if len(rows) > 1:
+                headers = rows[0]
+                results = []
+                for row in rows[1:]:
+                    if phone in ' '.join(row):
+                        result = {}
+                        for i, v in enumerate(row):
+                            if i < len(headers) and v:
+                                result[headers[i]] = v
+                        results.append(result)
+                return {"source": "intelx", "data": results}
+        return {"source": "intelx", "error": "Данных нет"}
+    except Exception as e:
+        return {"source": "intelx", "error": str(e)}
+
+def search_vk(query):
+    params = {
+        "access_token": VK_TOKEN,
+        "v": "5.131",
+        "user_ids": query,
+        "fields": "first_name,last_name,status,sex,country,photo_max_orig"
+    }
+    try:
+        r = requests.get(VK_API, params=params, timeout=30, verify=False)
+        if r.status_code == 200:
+            data = r.json()
+            if "response" in data and data["response"]:
+                return {"source": "vk", "data": data["response"]}
+        return {"source": "vk", "error": "Пользователь не найден"}
+    except Exception as e:
+        return {"source": "vk", "error": str(e)}
+
+def search_ofdata(query, search_type):
+    if search_type not in ["inn", "ogrn", "fio", "company"]:
+        return {"source": "ofdata", "error": "OFDATA не поддерживает этот тип"}
+    
+    if search_type in ["inn", "ogrn"]:
+        by = search_type
+        obj = "org"
+    elif search_type == "fio":
+        by = "name"
+        obj = "ent"
+    else:
+        by = "name"
+        obj = "org"
+    
+    url = f"{OFDATA_URL}?key={OFDATA_KEY}&by={by}&obj={obj}&query={query}&limit=10"
+    try:
+        r = requests.get(url, timeout=15, verify=False)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("data", {}).get("Записи"):
+                return {"source": "ofdata", "data": data}
+            else:
+                return {"source": "ofdata", "error": "Ничего не найдено"}
+        else:
+            return {"source": "ofdata", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "ofdata", "error": str(e)}
+
+def search_abuseipdb(ip):
+    headers = {
+        "Key": ABUSEIPDB_KEY,
+        "Accept": "application/json"
+    }
+    params = {
+        "ipAddress": ip,
+        "maxAgeInDays": 90
+    }
+    
+    try:
+        r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10, verify=False)
+        if r.status_code == 200:
+            data = r.json().get("data", {})
+            return {
+                "source": "abuseipdb",
+                "data": {
+                    "ip": data.get("ipAddress"),
+                    "country": data.get("countryCode"),
+                    "isp": data.get("isp"),
+                    "confidence": data.get("abuseConfidenceScore"),
+                    "reports": data.get("totalReports"),
+                    "last_report": data.get("lastReportedAt"),
+                    "categories": data.get("categories", [])
+                }
+            }
+        else:
+            return {"source": "abuseipdb", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "abuseipdb", "error": str(e)}
+
+# ==================== FUNSTAT ====================
+def search_funstat(query, search_type):
+    if search_type != "telegram":
+        return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram"}
+    
+    if not query.isdigit():
+        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
+    
+    try:
+        fs = FunstatClient(FUNSTAT_TOKEN)
+        stats = fs.stats_min(int(query))
+        
+        if stats.success:
+            data = stats.data
+            return {
+                "source": "funstat",
+                "data": {
+                    "id": data.id,
+                    "first_name": data.first_name,
+                    "last_name": data.last_name,
+                    "is_bot": data.is_bot,
+                    "is_active": data.is_active,
+                    "first_msg_date": data.first_msg_date,
+                    "last_msg_date": data.last_msg_date,
+                    "total_msg_count": data.total_msg_count,
+                    "msg_in_groups_count": data.msg_in_groups_count,
+                    "adm_in_groups": data.adm_in_groups,
+                    "total_groups": data.total_groups,
+                    "usernames_count": data.usernames_count,
+                    "names_count": data.names_count
+                }
+            }
+        else:
+            return {"source": "funstat", "error": "Пользователь не найден"}
+    except Exception as e:
+        return {"source": "funstat", "error": str(e)}
+
+# ==================== BIGBASE ====================
+def search_bigbase(query, search_type):
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "auto": "auto",
+        "inn": "inn",
+        "passport": "passport",
+        "ip": "ip"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "bigbase", "error": "Тип не поддерживается"}
+    
+    headers = {
+        "Authorization": BIGBASE_KEY,
+        "Content-Type": "application/json"
+    }
+    data = {"search": query, "page": 1}
+    
+    try:
+        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30, verify=False)
+        if r.status_code == 200:
+            result = r.json()
+            if "user" in result and "api_token" in result["user"]:
+                result["user"]["api_token"] = "***СКРЫТО***"
+            return {"source": "bigbase", "data": result}
+        else:
+            return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "bigbase", "error": str(e)}
+
+# ==================== JITLER ====================
 def search_jitler(query, search_type, max_wait=60):
-    """
-    Поиск через Jitler
-    Поддерживает: phone, telegram, vk
-    """
     type_map = {
         "phone": "number",
         "telegram": "sherlock",
@@ -506,45 +680,60 @@ def search():
         "sources": []
     }
     
-    # ANYSCAN
-    #if search_type in ["phone", "email", "fio", "auto", "vk", "telegram", "ip", "inn", "snils", "passport"]:
-        #result["sources"].append(search_anyscan(query, search_type))
+    # ===== СБОР ДАННЫХ =====
     
     # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
-        result["sources"].append(search_bigbase(query, search_type))
+        try:
+            result["sources"].append(search_bigbase(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "bigbase", "error": str(e)})
     
-    # JITLER — phone, vk, telegram
+    # JITLER
     if search_type in ["phone", "vk", "telegram"]:
-        result["sources"].append(search_jitler(query, search_type))
+        try:
+            result["sources"].append(search_jitler(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "jitler", "error": str(e)})
     
-    # Snusbase
-    if search_type in ["email", "fio", "ip"]:
-        result["sources"].append(search_snusbase(query, search_type))
+    # VK
+    if search_type == "vk":
+        try:
+            result["sources"].append(search_vk(query))
+        except Exception as e:
+            result["sources"].append({"source": "vk", "error": str(e)})
     
-    # IntelX
-    if search_type == "phone":
-        result["sources"].append(search_intelx(query))
+    # ABUSEIPDB
+    if search_type == "ip":
+        try:
+            result["sources"].append(search_abuseipdb(query))
+        except Exception as e:
+            result["sources"].append({"source": "abuseipdb", "error": str(e)})
+    
+    # FUNSTAT
+    if search_type == "telegram" and query.isdigit():
+        try:
+            result["sources"].append(search_funstat(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "funstat", "error": str(e)})
     
     # OFDATA
     if search_type in ["inn", "ogrn", "fio", "company"]:
-        result["sources"].append(search_ofdata(query, search_type))
+        try:
+            result["sources"].append(search_ofdata(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "ofdata", "error": str(e)})
     
-    # Shodan
-    #if search_type == "ip":
-        #result["sources"].append(search_shodan(query))
-    
-    # AbuseIPDB
-    if search_type == "ip":
-        result["sources"].append(search_abuseipdb(query))
-    
-    # Funstat
-    if search_type == "telegram" and query.isdigit():
-        result["sources"].append(search_funstat(query, search_type))
+    # INTELX
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_intelx(query))
+        except Exception as e:
+            result["sources"].append({"source": "intelx", "error": str(e)})
     
     return jsonify(result)
 
-# ==================== AI-ЧАТ (ВРЕМЕННО ОТКЛЮЧЁН) ====================
+# ==================== AI-ЧАТ ====================
 @app.route('/chat', methods=['POST'])
 def chat():
     return jsonify({"response": "❌ AI-чат временно отключён. Ведутся технические работы."}), 503
@@ -573,7 +762,7 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["AnyScan", "BigBase", "Jitler", "Snusbase", "IntelX", "VK", "OFDATA", "Shodan", "AbuseIPDB", "Funstat"],
+        "sources": ["BigBase", "Jitler", "VK", "AbuseIPDB", "Funstat", "OFDATA", "IntelX"],
         "features": {
             "search": "Поиск по 12 типам запросов"
         }
