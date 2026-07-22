@@ -14,8 +14,13 @@ import io
 import secrets
 import os
 import time
+import logging
 from datetime import datetime, timedelta
 from funstat_api import FunstatClient
+
+# ==================== НАСТРОЙКА ЛОГИРОВАНИЯ ====================
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -647,10 +652,20 @@ def search_jitler(query, search_type, max_wait=60):
                 )
                 
                 if r2.status_code == 200:
-                    data = r2.json()
-                    if data.get("response") == []:
+                    data2 = r2.json()
+                    if data2.get("response") == []:
                         return {"source": "jitler", "error": "Данных нет"}
-                    return {"source": "jitler", "data": data}
+                    
+                    # ===== ГЛАВНЫЙ ФИКС =====
+                    if isinstance(data2.get("response"), str):
+                        return {
+                            "source": "jitler",
+                            "data": {
+                                "raw": data2["response"]
+                            }
+                        }
+                    return {"source": "jitler", "data": data2}
+                    
                 elif r2.status_code == 501:
                     continue
                 else:
@@ -660,6 +675,15 @@ def search_jitler(query, search_type, max_wait=60):
         else:
             if result.get("response") == []:
                 return {"source": "jitler", "error": "Данных нет"}
+            
+            # ===== ГЛАВНЫЙ ФИКС =====
+            if isinstance(result.get("response"), str):
+                return {
+                    "source": "jitler",
+                    "data": {
+                        "raw": result["response"]
+                    }
+                }
             return {"source": "jitler", "data": result}
             
     except Exception as e:
@@ -716,84 +740,105 @@ def search():
     if not check_api_key(api_key):
         return jsonify({"error": "Неверный или просроченный API-ключ"}), 403
     
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Нет данных"}), 400
-    
-    query = data.get('query', '').strip()
-    if not query:
-        return jsonify({"error": "Пустой запрос"}), 400
-    
-    search_type = data.get('type')
-    if not search_type:
-        search_type = detect_type(query)
-    
-    result = {
-        "query": query,
-        "type": search_type,
-        "timestamp": datetime.now().isoformat(),
-        "sources": []
-    }
-    
-    # ===== СБОР ДАННЫХ =====
-    
-    # BIGBASE
-    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
-        try:
-            result["sources"].append(search_bigbase(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "bigbase", "error": str(e)})
-    
-    # JITLER
-    if search_type in ["phone", "vk", "telegram"]:
-        try:
-            result["sources"].append(search_jitler(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "jitler", "error": str(e)})
-    
-    # VK
-    if search_type == "vk":
-        try:
-            result["sources"].append(search_vk(query))
-        except Exception as e:
-            result["sources"].append({"source": "vk", "error": str(e)})
-    
-    # ABUSEIPDB
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_abuseipdb(query))
-        except Exception as e:
-            result["sources"].append({"source": "abuseipdb", "error": str(e)})
-    
-    # FUNSTAT
-    if search_type == "telegram" and query.isdigit():
-        try:
-            result["sources"].append(search_funstat(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "funstat", "error": str(e)})
-    
-    # OFDATA
-    if search_type in ["inn", "ogrn", "fio", "company"]:
-        try:
-            result["sources"].append(search_ofdata(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "ofdata", "error": str(e)})
-    
-    # INTELX
-    if search_type == "phone":
-        try:
-            result["sources"].append(search_intelx(query))
-        except Exception as e:
-            result["sources"].append({"source": "intelx", "error": str(e)})
-    
-    # ANYSCAN
-    if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
-        try:
-            result["sources"].append(search_anyscan(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "anyscan", "error": str(e)})
-    
-    return jsonify(result)
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Нет данных"}), 400
+        
+        query = data.get('query', '').strip()
+        if not query:
+            return jsonify({"error": "Пустой запрос"}), 400
+        
+        search_type = data.get('type')
+        if not search_type:
+            search_type = detect_type(query)
+        
+        result = {
+            "query": query,
+            "type": search_type,
+            "timestamp": datetime.now().isoformat(),
+            "sources": []
+        }
+        
+        # ===== СБОР ДАННЫХ =====
+        
+        # BIGBASE
+        if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
+            try:
+                res = search_bigbase(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"BigBase error: {e}")
+                result["sources"].append({"source": "bigbase", "error": str(e)})
+        
+        # JITLER
+        if search_type in ["phone", "vk", "telegram"]:
+            try:
+                res = search_jitler(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"Jitler error: {e}")
+                result["sources"].append({"source": "jitler", "error": str(e)})
+        
+        # VK
+        if search_type == "vk":
+            try:
+                res = search_vk(query)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"VK error: {e}")
+                result["sources"].append({"source": "vk", "error": str(e)})
+        
+        # ABUSEIPDB
+        if search_type == "ip":
+            try:
+                res = search_abuseipdb(query)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"AbuseIPDB error: {e}")
+                result["sources"].append({"source": "abuseipdb", "error": str(e)})
+        
+        # FUNSTAT
+        if search_type == "telegram" and query.isdigit():
+            try:
+                res = search_funstat(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"Funstat error: {e}")
+                result["sources"].append({"source": "funstat", "error": str(e)})
+        
+        # OFDATA
+        if search_type in ["inn", "ogrn", "fio", "company"]:
+            try:
+                res = search_ofdata(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"OFDATA error: {e}")
+                result["sources"].append({"source": "ofdata", "error": str(e)})
+        
+        # INTELX
+        if search_type == "phone":
+            try:
+                res = search_intelx(query)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"IntelX error: {e}")
+                result["sources"].append({"source": "intelx", "error": str(e)})
+        
+        # ANYSCAN
+        if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
+            try:
+                res = search_anyscan(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"AnyScan error: {e}")
+                result["sources"].append({"source": "anyscan", "error": str(e)})
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # ==================== HEALTH ====================
 @app.route('/health')
