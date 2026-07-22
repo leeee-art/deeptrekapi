@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор (ФИНАЛЬНАЯ ВЕРСИЯ)
+DeepTrek API v8.0 — OSINT-агрегатор (ВСЕ ИСТОЧНИКИ КРОМЕ ANYSCAN)
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -56,10 +56,6 @@ BIGBASE_URL = "https://bigbase.top/api/search"
 # ==================== JITLER ====================
 JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
 JITLER_URL = "https://api.jitler.top"
-
-# ==================== ANYSCAN ====================
-ANYSCAN_TOKEN = os.getenv('ANYSCAN_TOKEN', "oxYKwwEN2kvMyG7advJ3DQ")
-ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 subscriptions = {}
 api_keys = {}
@@ -263,7 +259,6 @@ ACTIVATE_HTML = '''
                                     <span class="badge">Funstat</span>
                                     <span class="badge">OFDATA</span>
                                     <span class="badge">IntelX</span>
-                                    <span class="badge">AnyScan</span>
                                 </span>
                             </div>
                             <div class="info-row">
@@ -412,6 +407,165 @@ def detect_type(query):
             return "company"
     return "username"
 
+# ==================== ПАРСЕРЫ ====================
+def search_atlas(query, search_type):
+    return {"source": "atlas", "error": "Временно недоступен"}
+
+def search_snusbase(query, search_type):
+    if search_type not in ["email", "fio", "ip"]:
+        return {"source": "snusbase", "error": "Snusbase не поддерживает этот тип"}
+    
+    snus_type = "ip" if search_type == "ip" else search_type
+    if search_type == "fio":
+        snus_type = "username"
+    
+    payload = {"terms": [query], "types": [snus_type], "wildcard": False}
+    headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
+    try:
+        r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30, verify=False)
+        return {"source": "snusbase", "data": r.json()} if r.status_code == 200 else {"source": "snusbase", "error": f"Код: {r.status_code}"}
+    except Exception as e:
+        return {"source": "snusbase", "error": str(e)}
+
+def search_intelx(phone):
+    phone = re.sub(r'\D', '', phone)
+    if len(phone) < 8:
+        return {"source": "intelx", "error": "Номер слишком короткий"}
+    
+    url = f"https://data.intelx.io/saverudata/db2/dbpn/{phone[:2]}/{phone[2:4]}/{phone[4:6]}/{phone[6:8]}.csv"
+    try:
+        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10, verify=False)
+        if r.status_code == 200:
+            reader = csv.reader(io.StringIO(r.text))
+            rows = list(reader)
+            if len(rows) > 1:
+                headers = rows[0]
+                results = []
+                for row in rows[1:]:
+                    if phone in ' '.join(row):
+                        result = {}
+                        for i, v in enumerate(row):
+                            if i < len(headers) and v:
+                                result[headers[i]] = v
+                        results.append(result)
+                return {"source": "intelx", "data": results}
+        return {"source": "intelx", "error": "Данных нет"}
+    except Exception as e:
+        return {"source": "intelx", "error": str(e)}
+
+def search_vk(query):
+    params = {
+        "access_token": VK_TOKEN,
+        "v": "5.131",
+        "user_ids": query,
+        "fields": "first_name,last_name,status,sex,country,photo_max_orig"
+    }
+    try:
+        r = requests.get(VK_API, params=params, timeout=30, verify=False)
+        if r.status_code == 200:
+            data = r.json()
+            if "response" in data and data["response"]:
+                return {"source": "vk", "data": data["response"]}
+        return {"source": "vk", "error": "Пользователь не найден"}
+    except Exception as e:
+        return {"source": "vk", "error": str(e)}
+
+def search_ofdata(query, search_type):
+    if search_type not in ["inn", "ogrn", "fio", "company"]:
+        return {"source": "ofdata", "error": "OFDATA не поддерживает этот тип"}
+    
+    if search_type in ["inn", "ogrn"]:
+        by = search_type
+        obj = "org"
+    elif search_type == "fio":
+        by = "name"
+        obj = "ent"
+    else:
+        by = "name"
+        obj = "org"
+    
+    url = f"{OFDATA_URL}?key={OFDATA_KEY}&by={by}&obj={obj}&query={query}&limit=10"
+    try:
+        r = requests.get(url, timeout=15, verify=False)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("data", {}).get("Записи"):
+                return {"source": "ofdata", "data": data}
+            else:
+                return {"source": "ofdata", "error": "Ничего не найдено"}
+        else:
+            return {"source": "ofdata", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "ofdata", "error": str(e)}
+
+def search_abuseipdb(ip):
+    headers = {
+        "Key": ABUSEIPDB_KEY,
+        "Accept": "application/json"
+    }
+    params = {
+        "ipAddress": ip,
+        "maxAgeInDays": 90
+    }
+    
+    try:
+        r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10, verify=False)
+        if r.status_code == 200:
+            data = r.json().get("data", {})
+            return {
+                "source": "abuseipdb",
+                "data": {
+                    "ip": data.get("ipAddress"),
+                    "country": data.get("countryCode"),
+                    "isp": data.get("isp"),
+                    "confidence": data.get("abuseConfidenceScore"),
+                    "reports": data.get("totalReports"),
+                    "last_report": data.get("lastReportedAt"),
+                    "categories": data.get("categories", [])
+                }
+            }
+        else:
+            return {"source": "abuseipdb", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "abuseipdb", "error": str(e)}
+
+# ==================== FUNSTAT ====================
+def search_funstat(query, search_type):
+    if search_type != "telegram":
+        return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram"}
+    
+    if not query.isdigit():
+        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
+    
+    try:
+        fs = FunstatClient(FUNSTAT_TOKEN)
+        stats = fs.stats_min(int(query))
+        
+        if stats.success:
+            data = stats.data
+            return {
+                "source": "funstat",
+                "data": {
+                    "id": data.id,
+                    "first_name": data.first_name if data.first_name and data.first_name != "." else None,
+                    "last_name": data.last_name if data.last_name and data.last_name != "." else None,
+                    "is_bot": data.is_bot,
+                    "is_active": data.is_active,
+                    "first_msg_date": data.first_msg_date,
+                    "last_msg_date": data.last_msg_date,
+                    "total_msg_count": data.total_msg_count,
+                    "msg_in_groups_count": data.msg_in_groups_count,
+                    "adm_in_groups": data.adm_in_groups,
+                    "total_groups": data.total_groups,
+                    "usernames_count": data.usernames_count,
+                    "names_count": data.names_count
+                }
+            }
+        else:
+            return {"source": "funstat", "error": "Пользователь не найден"}
+    except Exception as e:
+        return {"source": "funstat", "error": str(e)}
+
 # ==================== BIGBASE ====================
 def search_bigbase(query, search_type):
     type_map = {
@@ -528,54 +682,7 @@ def search_jitler(query, search_type, max_wait=60):
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
-# ==================== ANYSCAN ====================
-def search_anyscan(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email",
-        "fio": "name",
-        "inn": "inn",
-        "snils": "snils",
-        "passport": "passport"
-    }
-    
-    if search_type not in type_map:
-        return {"source": "anyscan", "error": "Тип не поддерживается"}
-    
-    anyscan_type = type_map[search_type]
-    
-    headers = {
-        "Authorization": f"Bearer {ANYSCAN_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "type": anyscan_type,
-        "q": query,
-        "limit": 100
-    }
-    
-    try:
-        r = requests.post(ANYSCAN_URL, headers=headers, json=data, timeout=120, verify=False)
-        
-        if r.status_code == 200:
-            result = r.json()
-            if isinstance(result, dict):
-                return {"source": "anyscan", "data": result}
-            else:
-                return {"source": "anyscan", "data": {"raw": str(result)}}
-        elif r.status_code == 403:
-            return {"source": "anyscan", "error": "Токен невалидный или IP в черном списке"}
-        elif r.status_code == 429:
-            return {"source": "anyscan", "error": "Превышен лимит запросов"}
-        else:
-            return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
-            
-    except requests.exceptions.Timeout:
-        return {"source": "anyscan", "error": "Таймаут (120 сек)"}
-    except Exception as e:
-        return {"source": "anyscan", "error": str(e)}
-
-# ==================== ОСНОВНОЙ ПОИСК (ФИНАЛЬНАЯ ВЕРСИЯ) ====================
+# ==================== ОСНОВНОЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
     try:
@@ -595,51 +702,92 @@ def search():
         if not search_type:
             search_type = detect_type(query)
         
-        # ===== СОБИРАЕМ ВСЕ ИСТОЧНИКИ =====
-        sources = []
-        
-        # BIGBASE
-        if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
-            try:
-                res = search_bigbase(query, search_type)
-                sources.append(res)
-            except Exception as e:
-                sources.append({"source": "bigbase", "error": str(e)})
-        
-        # JITLER
-        if search_type in ["phone", "vk", "telegram"]:
-            try:
-                res = search_jitler(query, search_type)
-                sources.append(res)
-            except Exception as e:
-                sources.append({"source": "jitler", "error": str(e)})
-        
-        # ANYSCAN
-        if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
-            try:
-                res = search_anyscan(query, search_type)
-                sources.append(res)
-            except Exception as e:
-                sources.append({"source": "anyscan", "error": str(e)})
-        
-        # ===== ВОЗВРАЩАЕМ ТОЛЬКО ТО, ЧТО ПОЛУЧИЛИ =====
-        return jsonify({
+        result = {
             "query": query,
             "type": search_type,
             "timestamp": datetime.now().isoformat(),
-            "sources": sources,
-            "debug": {
-                "bigbase": "ok",
-                "jitler": "ok",
-                "anyscan": "ok"
-            }
-        })
+            "sources": []
+        }
+        
+        # ===== BIGBASE =====
+        if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
+            try:
+                res = search_bigbase(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"BigBase error: {e}")
+                result["sources"].append({"source": "bigbase", "error": str(e)})
+        
+        # ===== JITLER =====
+        if search_type in ["phone", "vk", "telegram"]:
+            try:
+                res = search_jitler(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"Jitler error: {e}")
+                result["sources"].append({"source": "jitler", "error": str(e)})
+        
+        # ===== VK =====
+        if search_type == "vk":
+            try:
+                res = search_vk(query)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"VK error: {e}")
+                result["sources"].append({"source": "vk", "error": str(e)})
+        
+        # ===== ABUSEIPDB =====
+        if search_type == "ip":
+            try:
+                res = search_abuseipdb(query)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"AbuseIPDB error: {e}")
+                result["sources"].append({"source": "abuseipdb", "error": str(e)})
+        
+        # ===== FUNSTAT =====
+        if search_type == "telegram" and query.isdigit():
+            try:
+                res = search_funstat(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"Funstat error: {e}")
+                result["sources"].append({"source": "funstat", "error": str(e)})
+        
+        # ===== OFDATA =====
+        if search_type in ["inn", "ogrn", "fio", "company"]:
+            try:
+                res = search_ofdata(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"OFDATA error: {e}")
+                result["sources"].append({"source": "ofdata", "error": str(e)})
+        
+        # ===== INTELX =====
+        if search_type == "phone":
+            try:
+                res = search_intelx(query)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"IntelX error: {e}")
+                result["sources"].append({"source": "intelx", "error": str(e)})
+        
+        # ===== SNUSBASE =====
+        if search_type in ["email", "fio", "ip"]:
+            try:
+                res = search_snusbase(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"Snusbase error: {e}")
+                result["sources"].append({"source": "snusbase", "error": str(e)})
+        
+        return jsonify(result)
         
     except Exception as e:
         import traceback
         error_text = traceback.format_exc()
         logger.error(f"Search error: {error_text}")
-        return jsonify({"error": error_text, "traceback": error_text}), 500
+        return jsonify({"error": error_text}), 500
 
 # ==================== HEALTH ====================
 @app.route('/health')
@@ -656,7 +804,7 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор (ФИНАЛЬНАЯ ВЕРСИЯ)",
+        "description": "OSINT-агрегатор (ВСЕ ИСТОЧНИКИ КРОМЕ ANYSCAN)",
         "author": "@kmyfg",
         "endpoints": {
             "/search": "POST - поиск",
@@ -664,7 +812,7 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["BigBase", "Jitler", "AnyScan"],
+        "sources": ["BigBase", "Jitler", "VK", "AbuseIPDB", "Funstat", "OFDATA", "IntelX", "Snusbase"],
         "features": {
             "search": "Поиск по 12 типам запросов"
         }
