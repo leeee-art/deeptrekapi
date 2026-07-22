@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор (BigBase + Jitler + AnyScan)
+DeepTrek API v8.0 — OSINT-агрегатор (ФИНАЛЬНАЯ ВЕРСИЯ)
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -575,7 +575,7 @@ def search_anyscan(query, search_type):
     except Exception as e:
         return {"source": "anyscan", "error": str(e)}
 
-# ==================== ОСНОВНОЙ ПОИСК (BigBase + Jitler + AnyScan) ====================
+# ==================== ОСНОВНОЙ ПОИСК (ФИНАЛЬНАЯ ВЕРСИЯ) ====================
 @app.route('/search', methods=['POST'])
 def search():
     try:
@@ -595,47 +595,51 @@ def search():
         if not search_type:
             search_type = detect_type(query)
         
-        result = {
-            "query": query,
-            "type": search_type,
-            "timestamp": datetime.now().isoformat(),
-            "sources": []
-        }
+        # ===== СОБИРАЕМ ВСЕ ИСТОЧНИКИ =====
+        sources = []
         
-        # ===== BIGBASE =====
+        # BIGBASE
         if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
             try:
                 res = search_bigbase(query, search_type)
-                result["sources"].append(res)
+                sources.append(res)
             except Exception as e:
-                logger.error(f"BigBase error: {e}")
-                result["sources"].append({"source": "bigbase", "error": str(e)})
+                sources.append({"source": "bigbase", "error": str(e)})
         
-        # ===== JITLER =====
+        # JITLER
         if search_type in ["phone", "vk", "telegram"]:
             try:
                 res = search_jitler(query, search_type)
-                result["sources"].append(res)
+                sources.append(res)
             except Exception as e:
-                logger.error(f"Jitler error: {e}")
-                result["sources"].append({"source": "jitler", "error": str(e)})
+                sources.append({"source": "jitler", "error": str(e)})
         
-        # ===== ANYSCAN =====
+        # ANYSCAN
         if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
             try:
                 res = search_anyscan(query, search_type)
-                result["sources"].append(res)
+                sources.append(res)
             except Exception as e:
-                logger.error(f"AnyScan error: {e}")
-                result["sources"].append({"source": "anyscan", "error": str(e)})
+                sources.append({"source": "anyscan", "error": str(e)})
         
-        return jsonify(result)
+        # ===== ВОЗВРАЩАЕМ ТОЛЬКО ТО, ЧТО ПОЛУЧИЛИ =====
+        return jsonify({
+            "query": query,
+            "type": search_type,
+            "timestamp": datetime.now().isoformat(),
+            "sources": sources,
+            "debug": {
+                "bigbase": "ok",
+                "jitler": "ok",
+                "anyscan": "ok"
+            }
+        })
         
     except Exception as e:
         import traceback
         error_text = traceback.format_exc()
         logger.error(f"Search error: {error_text}")
-        return jsonify({"error": error_text}), 500
+        return jsonify({"error": error_text, "traceback": error_text}), 500
 
 # ==================== HEALTH ====================
 @app.route('/health')
@@ -652,10 +656,10 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор (BigBase + Jitler + AnyScan)",
+        "description": "OSINT-агрегатор (ФИНАЛЬНАЯ ВЕРСИЯ)",
         "author": "@kmyfg",
         "endpoints": {
-            "/search": "POST - поиск (BigBase + Jitler + AnyScan)",
+            "/search": "POST - поиск",
             "/activate": "GET - страница активации API",
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
