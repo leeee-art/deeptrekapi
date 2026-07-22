@@ -57,7 +57,7 @@ ANYSCAN_TOKEN = os.getenv('ANYSCAN_TOKEN', "oxYKwwEN2kvMyG7advJ3DQ")
 ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 # ==================== GITHUB MODELS AI ====================
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', "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")
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', "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")
 GITHUB_URL = "https://models.github.ai/inference/chat/completions"
 
 # ==================== ТОЛЬКО РАБОТАЮЩИЕ МОДЕЛИ ====================
