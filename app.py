@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DeepTrek API v8.0 — OSINT-агрегатор (ВСЕ ИСТОЧНИКИ КРОМЕ ANYSCAN)
+DeepTrek API v8.0 — OSINT-агрегатор (ВСЕ ИСТОЧНИКИ)
 Ссылка: https://deeptrekapi.onrender.com
 """
 
@@ -56,6 +56,10 @@ BIGBASE_URL = "https://bigbase.top/api/search"
 # ==================== JITLER ====================
 JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
 JITLER_URL = "https://api.jitler.top"
+
+# ==================== ANYSCAN ====================
+ANYSCAN_TOKEN = os.getenv('ANYSCAN_TOKEN', "oxYKwwEN2kvMyG7advJ3DQ")
+ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 subscriptions = {}
 api_keys = {}
@@ -259,6 +263,8 @@ ACTIVATE_HTML = '''
                                     <span class="badge">Funstat</span>
                                     <span class="badge">OFDATA</span>
                                     <span class="badge">IntelX</span>
+                                    <span class="badge">Snusbase</span>
+                                    <span class="badge">AnyScan</span>
                                 </span>
                             </div>
                             <div class="info-row">
@@ -682,6 +688,54 @@ def search_jitler(query, search_type, max_wait=60):
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
+# ==================== ANYSCAN ====================
+def search_anyscan(query, search_type):
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "name",
+        "inn": "inn",
+        "snils": "snils",
+        "passport": "passport"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "anyscan", "error": "Тип не поддерживается"}
+    
+    anyscan_type = type_map[search_type]
+    
+    headers = {
+        "Authorization": f"Bearer {ANYSCAN_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "type": anyscan_type,
+        "q": query,
+        "limit": 100
+    }
+    
+    try:
+        r = requests.post(ANYSCAN_URL, headers=headers, json=data, timeout=120, verify=False)
+        
+        if r.status_code == 200:
+            result = r.json()
+            # Проверяем, что результат — словарь
+            if isinstance(result, dict):
+                return {"source": "anyscan", "data": result}
+            else:
+                return {"source": "anyscan", "data": {"raw": str(result)}}
+        elif r.status_code == 403:
+            return {"source": "anyscan", "error": "Токен невалидный или IP в черном списке"}
+        elif r.status_code == 429:
+            return {"source": "anyscan", "error": "Превышен лимит запросов"}
+        else:
+            return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
+            
+    except requests.exceptions.Timeout:
+        return {"source": "anyscan", "error": "Таймаут (120 сек)"}
+    except Exception as e:
+        return {"source": "anyscan", "error": str(e)}
+
 # ==================== ОСНОВНОЙ ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
@@ -781,6 +835,15 @@ def search():
                 logger.error(f"Snusbase error: {e}")
                 result["sources"].append({"source": "snusbase", "error": str(e)})
         
+        # ===== ANYSCAN =====
+        if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
+            try:
+                res = search_anyscan(query, search_type)
+                result["sources"].append(res)
+            except Exception as e:
+                logger.error(f"AnyScan error: {e}")
+                result["sources"].append({"source": "anyscan", "error": str(e)})
+        
         return jsonify(result)
         
     except Exception as e:
@@ -804,7 +867,7 @@ def index():
     return jsonify({
         "name": "DeepTrek API",
         "version": "8.0",
-        "description": "OSINT-агрегатор (ВСЕ ИСТОЧНИКИ КРОМЕ ANYSCAN)",
+        "description": "OSINT-агрегатор (ВСЕ ИСТОЧНИКИ)",
         "author": "@kmyfg",
         "endpoints": {
             "/search": "POST - поиск",
@@ -812,7 +875,7 @@ def index():
             "/api/activate": "POST - активация API-ключа",
             "/health": "GET - статус"
         },
-        "sources": ["BigBase", "Jitler", "VK", "AbuseIPDB", "Funstat", "OFDATA", "IntelX", "Snusbase"],
+        "sources": ["BigBase", "Jitler", "VK", "AbuseIPDB", "Funstat", "OFDATA", "IntelX", "Snusbase", "AnyScan"],
         "features": {
             "search": "Поиск по 12 типам запросов"
         }
