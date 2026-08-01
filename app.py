@@ -3,10 +3,11 @@ from flask_cors import CORS
 import requests
 import json
 import re
+import csv
+import io
 import time
 from datetime import datetime
 from typing import Tuple, Optional
-from funstat_api import FunstatClient
 
 app = Flask(__name__)
 CORS(app)
@@ -14,10 +15,9 @@ CORS(app)
 # ==================== КОНФИГ ====================
 MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 
-# BIGBASE
-BIGBASE_KEY = "3y-Wbcx_NZrmoli2CnNXveZNSIozuGDW"
-BIGBASE_BACKUP_KEY = "UUfh4i4J1WaMdeERFqzLOOPfBoQqZ9UB"
-BIGBASE_URL = "https://bigbase.top/api/search"
+# LEAK OSINT
+LEAKOSINT_TOKEN = "76572095882:app:WRfKwOvV"
+LEAKOSINT_URL = "https://leakosintapi.com/"
 
 # ANYSCAN
 ANYSCAN_TOKEN = "oxYKwwEN2kvMyG7advJ3DQ"
@@ -50,66 +50,56 @@ SNUSBASE_URL = "https://api.snusbase.com/data/search"
 CERERA_TOKEN = "ca_4oOeTcjU0dYTU_O6yl1Spg5s2JzseZEzVr2_dYL7rmI"
 CERERA_URL = "https://cerera.cc/api"
 
+# ==================== ПАРСЕРЫ ====================
+
+# RUSFINDER
+RUSFINDER_URL = "https://rusfinder.pro"
+
+# PHONERADAR
+PHONERADAR_URL = "http://phoneradar.ru/phone"
+
+# TOPDB
+TOPDB_URL = "https://topdb.ru"
+
+# PHOTO-MAP
+PHOTOMAP_URL = "https://photo-map.ru"
+
+# CHECK-HOST
+CHECKHOST_URL = "https://check-host.net/check-ip"
+
+# IKNOWWHATYOUDOWNLOAD
+IKNOW_URL = "https://iknowwhatyoudownload.com/ru/peer"
+
+# SPRAVKARU
+SPRAVKARU_URL = "http://spravkaru.net"
+
+# SKYPERESOLVER
+SKYPERESOLVER_URL = "http://skyperesolver.net"
+
+# BIGBOOKNAME
+BIGBOOKNAME_URL = "https://bigbookname.com/user"
+
+# ==================== ФУНКЦИИ ====================
+
 def check_api_key():
     return request.headers.get('X-API-Key') == MASTER_KEY
 
-# ==================== УМНОЕ ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
-    """
-    Умное определение типа запроса с приоритетами.
-    Возвращает: (тип, нормализованное_значение)
-    """
     query = query.strip()
     if not query:
         return "unknown", None
-    
-    # ============ 1. ТОЧНЫЕ МАСКИ (высший приоритет) ============
     
     # Email
     if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', query):
         return "email", query.lower()
     
-    # IP-адрес (v4)
+    # IP
     ip_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
     if re.match(ip_pattern, query):
         return "ip", query
     
-    # Домен (без протокола)
-    if re.match(r'^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/.*)?$', query):
-        return "domain", query.lower()
-    
-    # ============ 2. TELEGRAM (ID и USERNAME) ============
-    
-    # Telegram ID (числовой, от 5 до 15 цифр)
-    if re.match(r'^\d{5,15}$', query):
-        return "telegram_id", query
-    
-    # Telegram username (с @ или без)
-    if re.match(r'^@?[a-zA-Z0-9_]{5,32}$', query):
-        username = query[1:] if query.startswith('@') else query
-        return "telegram_username", username
-    
-    # ============ 3. ГОСУДАРСТВЕННЫЕ НОМЕРА ============
-    
-    # Автомобильный номер РФ
-    auto_clean = re.sub(r'\s+', '', query.upper())
-    auto_patterns = [
-        r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',  # A123BC77
-        r'^[АВЕКМНОРСТУХ]{2}\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',  # AA123BC77
-        r'^\d{4}[АВЕКМНОРСТУХ]{2}\d{2,3}$',  # 1234AA77
-        r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}$',  # A123BC
-        r'^[АВЕКМНОРСТУХ]{2}\d{3}[АВЕКМНОРСТУХ]{2}$'  # AA123BC
-    ]
-    for pattern in auto_patterns:
-        if re.match(pattern, auto_clean):
-            return "auto", auto_clean
-    
-    # ============ 4. ТЕЛЕФОНЫ ============
-    
-    # Очистка телефона от лишних символов
+    # Телефон
     phone_clean = re.sub(r'[\s()+-]', '', query)
-    
-    # Российские номера (7, 8, 9)
     if re.match(r'^(7|8|9)\d{10}$', phone_clean):
         if phone_clean.startswith('8'):
             phone_clean = '7' + phone_clean[1:]
@@ -117,155 +107,224 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
             phone_clean = '7' + phone_clean
         return "phone", phone_clean
     
-    # Международные номера (с +)
-    if re.match(r'^\+\d{1,3}\d{6,14}$', query):
-        return "phone", re.sub(r'\D', '', query)
+    # Telegram ID
+    if re.match(r'^\d{5,15}$', query):
+        return "telegram_id", query
     
-    # ============ 5. ДОКУМЕНТЫ ============
+    # Telegram username
+    if re.match(r'^@?[a-zA-Z0-9_]{5,32}$', query):
+        username = query[1:] if query.startswith('@') else query
+        return "telegram_username", username
     
-    # Паспорт РФ (XXXX XXXXXX или XXXX-XXXXXX)
-    passport_clean = re.sub(r'[\s-]', '', query)
-    if re.match(r'^\d{4}\d{6}$', passport_clean):
-        return "passport", passport_clean
+    # VK
+    if query.lower().startswith('id') and query[2:].isdigit():
+        return "vk", query[2:]
     
-    # ИНН (10 или 12 цифр)
+    # Автономер
+    auto_clean = re.sub(r'\s+', '', query.upper())
+    auto_patterns = [
+        r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',
+        r'^[АВЕКМНОРСТУХ]{2}\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',
+    ]
+    for pattern in auto_patterns:
+        if re.match(pattern, auto_clean):
+            return "auto", auto_clean
+    
+    # ИНН
     if re.match(r'^\d{10}$', query) or re.match(r'^\d{12}$', query):
         return "inn", query
     
-    # ОГРН (13 или 15 цифр)
-    if re.match(r'^\d{13}$', query) or re.match(r'^\d{15}$', query):
-        return "ogrn", query
-    
-    # СНИЛС (XXX-XXX-XXX XX)
+    # СНИЛС
     snils_clean = re.sub(r'[\s-]', '', query)
     if re.match(r'^\d{11}$', snils_clean):
         return "snils", snils_clean
     
-    # ============ 6. СОЦИАЛЬНЫЕ СЕТИ ============
+    # Паспорт
+    passport_clean = re.sub(r'[\s-]', '', query)
+    if re.match(r'^\d{4}\d{6}$', passport_clean):
+        return "passport", passport_clean
     
-    # VK ID (числовой или idXXXXX)
-    if query.lower().startswith('id') and query[2:].isdigit():
-        return "vk", query[2:]
-    
-    # VK ссылка
-    vk_pattern = r'(?:vk\.com/|vkontakte\.ru/)([a-zA-Z0-9_.]+)'
-    vk_match = re.search(vk_pattern, query.lower())
-    if vk_match:
-        return "vk", vk_match.group(1)
-    
-    # ============ 7. ФИО (русские буквы, минимум 2 слова) ============
+    # ФИО
     if re.search(r'[а-яА-Я]', query):
         words = query.split()
         if len(words) >= 2:
             return "fio", query
     
-    # ============ 8. НАЗВАНИЕ КОМПАНИИ ============
-    if re.search(r'[а-яА-Я]', query) and len(query.split()) >= 1:
-        return "company", query
-    
-    # ============ 9. USERNAME (все остальное) ============
-    if re.match(r'^[a-zA-Z0-9_.-]+$', query):
-        return "username", query
-    
-    return "unknown", query
+    return "username", query
 
-# ==================== BIGBASE ====================
-def search_bigbase(query, search_type):
-    keys = [BIGBASE_KEY, BIGBASE_BACKUP_KEY]
-    
-    for key in keys:
-        headers = {
-            "Authorization": key,
-            "Content-Type": "application/json"
-        }
-        data = {"search": query, "page": 1}
-        
-        try:
-            r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
-            if r.status_code == 200:
-                return {"source": "bigbase", "data": r.json()}
-            elif r.status_code in [402, 403]:
-                continue
-            else:
-                return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
-        except:
-            continue
-    
-    return {"source": "bigbase", "error": "Все ключи BigBase недоступны"}
+# ==================== LEAK OSINT ====================
 
-# ==================== ANYSCAN ====================
-def search_anyscan(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email",
-        "fio": "name",
-        "inn": "inn",
-        "snils": "snils",
-        "passport": "passport"
+def search_leakosint(query, limit=100, lang="ru"):
+    data = {
+        "token": LEAKOSINT_TOKEN,
+        "request": query,
+        "limit": limit,
+        "lang": lang
     }
+    try:
+        r = requests.post(LEAKOSINT_URL, json=data, timeout=30)
+        if r.status_code == 200:
+            result = r.json()
+            if "Error code" in result:
+                return {"source": "leakosint", "error": f"{result.get('Error code')}: {result.get('Message', '')}"}
+            return {"source": "leakosint", "data": result}
+        return {"source": "leakosint", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "leakosint", "error": str(e)}
+
+# ==================== INTELX ====================
+
+def search_intelx(phone):
+    """Поиск по номеру через IntelX CSV-дампы"""
+    phone_clean = re.sub(r'\D', '', phone)
+    if len(phone_clean) < 8:
+        return {"source": "intelx", "error": "Номер слишком короткий"}
     
+    url = f'https://data.intelx.io/saverudata/db2/dbpn/{phone_clean[:2]}/{phone_clean[2:4]}/{phone_clean[4:6]}/{phone_clean[6:8]}.csv'
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    
+    try:
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code == 200:
+            reader = list(csv.reader(io.StringIO(r.text)))
+            if len(reader) > 1:
+                headers_row = reader[0]
+                found = False
+                results = []
+                for row in reader[1:]:
+                    if phone_clean in ' '.join(row):
+                        found = True
+                        results.append({headers_row[i]: row[i] for i in range(len(headers_row)) if i < len(row) and row[i]})
+                if found:
+                    return {"source": "intelx", "data": results}
+                return {"source": "intelx", "error": "Ничего не найдено"}
+            return {"source": "intelx", "error": "Данных нет"}
+        return {"source": "intelx", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "intelx", "error": str(e)}
+
+# ==================== ПАРСЕРЫ ====================
+
+def search_rusfinder(query, search_type):
+    try:
+        params = {"q": query}
+        if search_type:
+            params["type"] = search_type
+        r = requests.get(RUSFINDER_URL, params=params, timeout=15)
+        if r.status_code == 200:
+            return {"source": "rusfinder", "data": r.text[:1000]}
+        return {"source": "rusfinder", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "rusfinder", "error": str(e)}
+
+def search_phoneradar(phone):
+    try:
+        phone_clean = re.sub(r'[\s()+-]', '', phone)
+        r = requests.get(f"{PHONERADAR_URL}/{phone_clean}", timeout=15)
+        if r.status_code == 200:
+            return {"source": "phoneradar", "data": r.text[:500]}
+        return {"source": "phoneradar", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "phoneradar", "error": str(e)}
+
+def search_topdb(username):
+    try:
+        r = requests.get(f"{TOPDB_URL}/{username}", timeout=15)
+        if r.status_code == 200:
+            return {"source": "topdb", "data": r.text[:500]}
+        return {"source": "topdb", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "topdb", "error": str(e)}
+
+def search_photomap(query):
+    try:
+        params = {"q": query}
+        r = requests.get(PHOTOMAP_URL, params=params, timeout=15)
+        if r.status_code == 200:
+            return {"source": "photomap", "data": r.text[:500]}
+        return {"source": "photomap", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "photomap", "error": str(e)}
+
+def search_checkhost(ip):
+    try:
+        r = requests.get(f"{CHECKHOST_URL}/{ip}", timeout=15)
+        if r.status_code == 200:
+            return {"source": "checkhost", "data": r.json()}
+        return {"source": "checkhost", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "checkhost", "error": str(e)}
+
+def search_iknow(ip):
+    try:
+        r = requests.get(f"{IKNOW_URL}/{ip}", timeout=15)
+        if r.status_code == 200:
+            return {"source": "iknow", "data": r.text[:500]}
+        return {"source": "iknow", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "iknow", "error": str(e)}
+
+def search_spravkaru(query):
+    try:
+        params = {"q": query}
+        r = requests.get(SPRAVKARU_URL, params=params, timeout=15)
+        if r.status_code == 200:
+            return {"source": "spravkaru", "data": r.text[:500]}
+        return {"source": "spravkaru", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "spravkaru", "error": str(e)}
+
+def search_skyperesolver(username):
+    try:
+        params = {"username": username}
+        r = requests.get(SKYPERESOLVER_URL, params=params, timeout=15)
+        if r.status_code == 200:
+            return {"source": "skyperesolver", "data": r.text[:500]}
+        return {"source": "skyperesolver", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "skyperesolver", "error": str(e)}
+
+def search_bigbookname(username):
+    try:
+        r = requests.get(f"{BIGBOOKNAME_URL}/{username}", timeout=15)
+        if r.status_code == 200:
+            return {"source": "bigbookname", "data": r.text[:500]}
+        return {"source": "bigbookname", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "bigbookname", "error": str(e)}
+
+# ==================== СТАРЫЕ ИСТОЧНИКИ ====================
+
+def search_anyscan(query, search_type):
+    type_map = {"phone": "phone", "email": "email", "fio": "name", "inn": "inn", "snils": "snils", "passport": "passport"}
     if search_type not in type_map:
         return {"source": "anyscan", "error": "Тип не поддерживается"}
-    
-    headers = {
-        "Authorization": f"Bearer {ANYSCAN_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "type": type_map[search_type],
-        "q": query,
-        "limit": 100
-    }
-    
+    headers = {"Authorization": f"Bearer {ANYSCAN_TOKEN}", "Content-Type": "application/json"}
+    data = {"type": type_map[search_type], "q": query, "limit": 100}
     try:
         r = requests.post(ANYSCAN_URL, headers=headers, json=data, timeout=30)
         if r.status_code == 200:
             return {"source": "anyscan", "data": r.json()}
-        else:
-            return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
+        return {"source": "anyscan", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "anyscan", "error": str(e)}
 
-# ==================== JITLER ====================
 def search_jitler(query, search_type):
-    type_map = {
-        "phone": "number",
-        "telegram_username": "sherlock",
-        "telegram_id": "sherlock",
-        "vk": "vks"
-    }
-    
+    type_map = {"phone": "number", "telegram_username": "sherlock", "telegram_id": "sherlock", "vk": "vks"}
     if search_type not in type_map:
         return {"source": "jitler", "error": "Тип не поддерживается"}
-    
-    headers = {
-        "Authorization": f"Bearer {JITLER_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "type": type_map[search_type],
-        "query": query,
-        "page": 1
-    }
-    
+    headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
+    data = {"type": type_map[search_type], "query": query, "page": 1}
     try:
         r = requests.post(f"{JITLER_URL}/search", headers=headers, json=data, timeout=30)
         if r.status_code == 200:
             return {"source": "jitler", "data": r.json()}
-        else:
-            return {"source": "jitler", "error": f"HTTP {r.status_code}"}
+        return {"source": "jitler", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
-# ==================== VK ====================
 def search_vk(query):
-    params = {
-        "access_token": VK_TOKEN,
-        "v": "5.131",
-        "user_ids": query,
-        "fields": "first_name,last_name,status,sex,country"
-    }
-    
+    params = {"access_token": VK_TOKEN, "v": "5.131", "user_ids": query, "fields": "first_name,last_name,status,sex,country"}
     try:
         r = requests.get(VK_API, params=params, timeout=30)
         if r.status_code == 200:
@@ -276,161 +335,69 @@ def search_vk(query):
     except Exception as e:
         return {"source": "vk", "error": str(e)}
 
-# ==================== ABUSEIPDB ====================
 def search_abuseipdb(ip):
     headers = {"Key": ABUSEIPDB_KEY, "Accept": "application/json"}
     params = {"ipAddress": ip, "maxAgeInDays": 90}
-    
     try:
         r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10)
         if r.status_code == 200:
             data = r.json().get("data", {})
-            return {
-                "source": "abuseipdb",
-                "data": {
-                    "ip": data.get("ipAddress"),
-                    "country": data.get("countryCode"),
-                    "isp": data.get("isp"),
-                    "confidence": data.get("abuseConfidenceScore"),
-                    "reports": data.get("totalReports")
-                }
-            }
-        else:
-            return {"source": "abuseipdb", "error": f"HTTP {r.status_code}"}
+            return {"source": "abuseipdb", "data": {"ip": data.get("ipAddress"), "country": data.get("countryCode"), "isp": data.get("isp"), "confidence": data.get("abuseConfidenceScore"), "reports": data.get("totalReports")}}
+        return {"source": "abuseipdb", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "abuseipdb", "error": str(e)}
 
-# ==================== FUNSTAT ====================
-def search_funstat(query):
-    if not query.isdigit():
-        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
-    
-    try:
-        fs = FunstatClient(FUNSTAT_TOKEN)
-        stats = fs.stats_min(int(query))
-        
-        if stats.success:
-            data = stats.data
-            return {
-                "source": "funstat",
-                "data": {
-                    "id": data.id,
-                    "first_name": data.first_name,
-                    "last_name": data.last_name,
-                    "is_bot": data.is_bot,
-                    "is_active": data.is_active,
-                    "total_msg_count": data.total_msg_count,
-                    "total_groups": data.total_groups
-                }
-            }
-        else:
-            return {"source": "funstat", "error": "Пользователь не найден"}
-    except Exception as e:
-        return {"source": "funstat", "error": str(e)}
-
-# ==================== OFDATA ====================
 def search_ofdata(query, search_type):
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "Тип не поддерживается"}
-    
-    if search_type in ["inn", "ogrn"]:
-        by = search_type
-        obj = "org"
-    elif search_type == "fio":
-        by = "name"
-        obj = "ent"
-    else:
-        by = "name"
-        obj = "org"
-    
+    by = search_type if search_type in ["inn", "ogrn"] else "name"
+    obj = "org" if search_type in ["inn", "ogrn", "company"] else "ent"
     url = f"{OFDATA_URL}?key={OFDATA_KEY}&by={by}&obj={obj}&query={query}&limit=10"
-    
     try:
         r = requests.get(url, timeout=15)
         if r.status_code == 200:
             data = r.json()
             if data.get("data", {}).get("Записи"):
                 return {"source": "ofdata", "data": data}
-            else:
-                return {"source": "ofdata", "error": "Ничего не найдено"}
-        else:
-            return {"source": "ofdata", "error": f"HTTP {r.status_code}"}
+            return {"source": "ofdata", "error": "Ничего не найдено"}
+        return {"source": "ofdata", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
-# ==================== SNUSBASE ====================
 def search_snusbase(query, search_type):
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Тип не поддерживается"}
-    
     snus_type = "ip" if search_type == "ip" else search_type
     if search_type == "fio":
         snus_type = "username"
-    
     payload = {"terms": [query], "types": [snus_type], "wildcard": False}
     headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
-    
     try:
         r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30)
         if r.status_code == 200:
             return {"source": "snusbase", "data": r.json()}
-        else:
-            return {"source": "snusbase", "error": f"HTTP {r.status_code}"}
+        return {"source": "snusbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
-# ==================== CERERA ====================
 def search_cerera(query, search_type):
-    # Типы, которые поддерживает Cerera
     valid_types = ["phone", "fio", "email", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]
-    
     if search_type not in valid_types:
-        return {"source": "cerera", "error": "Тип не поддерживается Cerera"}
-    
-    params = {
-        "token": CERERA_TOKEN,
-        "type": search_type,
-        "q": query
-    }
-    
+        return {"source": "cerera", "error": "Тип не поддерживается"}
+    params = {"token": CERERA_TOKEN, "type": search_type, "q": query}
     try:
         r = requests.get(CERERA_URL, params=params, timeout=30)
         if r.status_code == 200:
             data = r.json()
             if data.get("status") == "success":
-                return {
-                    "source": "cerera",
-                    "data": data.get("data"),
-                    "balance": data.get("remaining_balance")
-                }
-            else:
-                return {"source": "cerera", "error": data.get("error", "Неизвестная ошибка")}
-        else:
-            return {"source": "cerera", "error": f"HTTP {r.status_code}"}
+                return {"source": "cerera", "data": data.get("data"), "balance": data.get("remaining_balance")}
+            return {"source": "cerera", "error": data.get("error", "Неизвестная ошибка")}
+        return {"source": "cerera", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "cerera", "error": str(e)}
 
-# ==================== TEMPMAIL ====================
-def create_temp_email():
-    try:
-        r = requests.get("https://api.tempmail.lol/generate", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            return {"success": True, "email": data["address"], "token": data["token"]}
-    except:
-        pass
-    return {"success": False, "error": "Не удалось создать почту"}
-
-def check_temp_mail(token):
-    try:
-        r = requests.get(f"https://api.tempmail.lol/messages/{token}", timeout=10)
-        if r.status_code == 200:
-            return {"success": True, "messages": r.json()}
-    except:
-        pass
-    return {"success": False, "error": "Не удалось проверить почту"}
-
 # ==================== ОСНОВНОЙ ПОИСК ====================
+
 @app.route('/search', methods=['POST'])
 def search():
     if not check_api_key():
@@ -449,11 +416,6 @@ def search():
         search_type, normalized_query = detect_type(query)
         if normalized_query:
             query = normalized_query
-    else:
-        # Если тип указан вручную, все равно нормализуем
-        _, normalized_query = detect_type(query)
-        if normalized_query:
-            query = normalized_query
     
     result = {
         "query": query,
@@ -462,12 +424,19 @@ def search():
         "sources": []
     }
     
-    # BIGBASE
-    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
+    # LEAK OSINT
+    if search_type in ["phone", "email", "fio", "username", "vk", "inn", "snils", "passport", "auto"]:
         try:
-            result["sources"].append(search_bigbase(query, search_type))
+            result["sources"].append(search_leakosint(query))
         except Exception as e:
-            result["sources"].append({"source": "bigbase", "error": str(e)})
+            result["sources"].append({"source": "leakosint", "error": str(e)})
+    
+    # INTELX (только для телефона)
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_intelx(query))
+        except Exception as e:
+            result["sources"].append({"source": "intelx", "error": str(e)})
     
     # ANYSCAN
     if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
@@ -497,13 +466,6 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "abuseipdb", "error": str(e)})
     
-    # FUNSTAT (только для Telegram ID)
-    if search_type == "telegram_id" and query.isdigit():
-        try:
-            result["sources"].append(search_funstat(query))
-        except Exception as e:
-            result["sources"].append({"source": "funstat", "error": str(e)})
-    
     # OFDATA
     if search_type in ["inn", "ogrn", "fio", "company"]:
         try:
@@ -525,46 +487,109 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "cerera", "error": str(e)})
     
+    # ПАРСЕРЫ
+    if search_type in ["phone", "email", "fio", "username"]:
+        try:
+            result["sources"].append(search_rusfinder(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "rusfinder", "error": str(e)})
+    
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_phoneradar(query))
+        except Exception as e:
+            result["sources"].append({"source": "phoneradar", "error": str(e)})
+    
+    if search_type in ["vk", "username"]:
+        try:
+            result["sources"].append(search_topdb(query))
+        except Exception as e:
+            result["sources"].append({"source": "topdb", "error": str(e)})
+    
+    if search_type == "ip":
+        try:
+            result["sources"].append(search_checkhost(query))
+        except Exception as e:
+            result["sources"].append({"source": "checkhost", "error": str(e)})
+    
+    if search_type == "ip":
+        try:
+            result["sources"].append(search_iknow(query))
+        except Exception as e:
+            result["sources"].append({"source": "iknow", "error": str(e)})
+    
+    if search_type == "fio":
+        try:
+            result["sources"].append(search_spravkaru(query))
+        except Exception as e:
+            result["sources"].append({"source": "spravkaru", "error": str(e)})
+    
+    if search_type == "username":
+        try:
+            result["sources"].append(search_skyperesolver(query))
+        except Exception as e:
+            result["sources"].append({"source": "skyperesolver", "error": str(e)})
+    
+    if search_type in ["vk", "username"]:
+        try:
+            result["sources"].append(search_bigbookname(query))
+        except Exception as e:
+            result["sources"].append({"source": "bigbookname", "error": str(e)})
+    
+    if search_type == "fio":
+        try:
+            result["sources"].append(search_photomap(query))
+        except Exception as e:
+            result["sources"].append({"source": "photomap", "error": str(e)})
+    
     return jsonify(result)
 
-# ==================== TEMPMAIL ЭНДПОИНТЫ ====================
+# ==================== TEMPMAIL ====================
+
 @app.route('/tempmail/generate', methods=['GET'])
 def tempmail_generate():
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    return jsonify(create_temp_email())
+    try:
+        r = requests.get("https://api.tempmail.lol/generate", timeout=10)
+        if r.status_code == 200:
+            return jsonify(r.json())
+        return jsonify({"error": f"HTTP {r.status_code}"}), r.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/tempmail/check/<token>', methods=['GET'])
 def tempmail_check(token):
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    return jsonify(check_temp_mail(token))
+    try:
+        r = requests.get(f"https://api.tempmail.lol/messages/{token}", timeout=10)
+        if r.status_code == 200:
+            return jsonify(r.json())
+        return jsonify({"error": f"HTTP {r.status_code}"}), r.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ==================== HEALTH ====================
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
 
-# ==================== ROOT ====================
 @app.route('/', methods=['GET'])
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "8.0",
-        "description": "OSINT-агрегатор + TempMail",
+        "version": "9.0",
+        "description": "OSINT-агрегатор + парсеры",
         "author": "@kmyfg",
-        "endpoints": {
-            "/search": "POST - поиск (нужен X-API-Key)",
-            "/tempmail/generate": "GET - создать временную почту",
-            "/tempmail/check/<token>": "GET - проверить письма",
-            "/health": "GET - статус"
-        },
-        "sources": ["BigBase", "AnyScan", "Jitler", "VK", "AbuseIPDB", "Funstat", "OFDATA", "Snusbase", "Cerera"],
-        "features": {
-            "search": "Поиск по 12 типам запросов",
-            "tempmail": "Временная почта"
-        }
+        "sources": [
+            "LeakOSINT", "IntelX", "AnyScan", "Jitler", "VK",
+            "AbuseIPDB", "OFDATA", "Snusbase", "Cerera",
+            "RusFinder", "PhoneRadar", "TopDB", "PhotoMap",
+            "CheckHost", "IKnow", "SpravkaRu", "Skyperesolver", "BigBookName"
+        ]
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
