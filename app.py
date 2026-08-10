@@ -15,11 +15,11 @@ CORS(app)
 # ==================== КОНФИГ ====================
 MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 
-# LEAK OSINT
-LEAKOSINT_TOKEN = "76572095882:app:WRfKwOvV"
-LEAKOSINT_URL = "https://leakosintapi.com/"
+# BIGBASE (ОСНОВНОЙ)
+BIGBASE_KEY = "8JsPp38dXVdQI5OAXxQlwgQRNvhcDD2Q"
+BIGBASE_URL = "https://bigbase.top/api/search"
 
-# ANYSCAN
+# ANYSCAN (duckdns)
 ANYSCAN_TOKEN = "oxYKwwEN2kvMyG7advJ3DQ"
 ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
@@ -35,9 +35,6 @@ VK_API = "https://api.vk.com/method/users.get"
 ABUSEIPDB_KEY = "58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581"
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 
-# FUNSTAT
-FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
-
 # OFDATA
 OFDATA_KEY = "KBnpz1CHKNngFXxK"
 OFDATA_URL = "https://api.ofdata.ru/v2/search"
@@ -46,44 +43,41 @@ OFDATA_URL = "https://api.ofdata.ru/v2/search"
 SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
-# CERERA
+# CERERA (если будет баланс)
 CERERA_TOKEN = "ca_4oOeTcjU0dYTU_O6yl1Spg5s2JzseZEzVr2_dYL7rmI"
 CERERA_URL = "https://cerera.cc/api"
 
-# ==================== ПАРСЕРЫ ====================
+# ==================== LEAKOSINT (ВРЕМЕННО ОТКЛЮЧЁН) ====================
+# LEAKOSINT_TOKEN = "76572095882:app:WRfKwOvV"
+# LEAKOSINT_URL = "https://leakosintapi.com/"
 
-# RUSFINDER
-RUSFINDER_URL = "https://rusfinder.pro"
+# ==================== ФУНКЦИЯ СКРЫТИЯ ====================
+def sanitize_response(data):
+    """Скрывает логин и токен в ответе"""
+    if isinstance(data, dict):
+        for key, value in list(data.items()):
+            if key == "user" and isinstance(value, dict):
+                if "login" in value:
+                    value["login"] = "***"
+                if "api_token" in value:
+                    value["api_token"] = "***"
+                if "referral_url" in value:
+                    value["referral_url"] = "***"
+            elif key == "login":
+                data[key] = "***"
+            elif key == "api_token":
+                data[key] = "***"
+            elif key == "referral_url":
+                data[key] = "***"
+            elif isinstance(value, dict):
+                sanitize_response(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        sanitize_response(item)
+    return data
 
-# PHONERADAR
-PHONERADAR_URL = "http://phoneradar.ru/phone"
-
-# TOPDB
-TOPDB_URL = "https://topdb.ru"
-
-# PHOTO-MAP
-PHOTOMAP_URL = "https://photo-map.ru"
-
-# CHECK-HOST
-CHECKHOST_URL = "https://check-host.net/check-ip"
-
-# IKNOWWHATYOUDOWNLOAD
-IKNOW_URL = "https://iknowwhatyoudownload.com/ru/peer"
-
-# SPRAVKARU
-SPRAVKARU_URL = "http://spravkaru.net"
-
-# SKYPERESOLVER
-SKYPERESOLVER_URL = "http://skyperesolver.net"
-
-# BIGBOOKNAME
-BIGBOOKNAME_URL = "https://bigbookname.com/user"
-
-# ==================== ФУНКЦИИ ====================
-
-def check_api_key():
-    return request.headers.get('X-API-Key') == MASTER_KEY
-
+# ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
     query = query.strip()
     if not query:
@@ -106,15 +100,6 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
         elif phone_clean.startswith('9'):
             phone_clean = '7' + phone_clean
         return "phone", phone_clean
-    
-    # Telegram ID
-    if re.match(r'^\d{5,15}$', query):
-        return "telegram_id", query
-    
-    # Telegram username
-    if re.match(r'^@?[a-zA-Z0-9_]{5,32}$', query):
-        username = query[1:] if query.startswith('@') else query
-        return "telegram_username", username
     
     # VK
     if query.lower().startswith('id') and query[2:].isdigit():
@@ -152,149 +137,35 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
     
     return "username", query
 
-# ==================== LEAK OSINT ====================
+def check_api_key():
+    return request.headers.get('X-API-Key') == MASTER_KEY
 
-def search_leakosint(query, limit=100, lang="ru"):
-    data = {
-        "token": LEAKOSINT_TOKEN,
-        "request": query,
-        "limit": limit,
-        "lang": lang
+# ==================== BIGBASE (ОСНОВНОЙ) ====================
+def search_bigbase(query, search_type):
+    headers = {
+        "Authorization": BIGBASE_KEY,
+        "Content-Type": "application/json"
     }
+    data = {"search": query}
+    if search_type:
+        data["type"] = search_type
+    
     try:
-        r = requests.post(LEAKOSINT_URL, json=data, timeout=30)
+        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
         if r.status_code == 200:
             result = r.json()
-            if "Error code" in result:
-                return {"source": "leakosint", "error": f"{result.get('Error code')}: {result.get('Message', '')}"}
-            return {"source": "leakosint", "data": result}
-        return {"source": "leakosint", "error": f"HTTP {r.status_code}"}
+            result = sanitize_response(result)
+            return {"source": "bigbase", "data": result}
+        elif r.status_code == 402:
+            return {"source": "bigbase", "error": "Недостаточно средств"}
+        elif r.status_code == 403:
+            return {"source": "bigbase", "error": "Неверный ключ"}
+        else:
+            return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "leakosint", "error": str(e)}
+        return {"source": "bigbase", "error": str(e)}
 
-# ==================== INTELX ====================
-
-def search_intelx(phone):
-    """Поиск по номеру через IntelX CSV-дампы"""
-    phone_clean = re.sub(r'\D', '', phone)
-    if len(phone_clean) < 8:
-        return {"source": "intelx", "error": "Номер слишком короткий"}
-    
-    url = f'https://data.intelx.io/saverudata/db2/dbpn/{phone_clean[:2]}/{phone_clean[2:4]}/{phone_clean[4:6]}/{phone_clean[6:8]}.csv'
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-    
-    try:
-        r = requests.get(url, headers=headers, timeout=15)
-        if r.status_code == 200:
-            reader = list(csv.reader(io.StringIO(r.text)))
-            if len(reader) > 1:
-                headers_row = reader[0]
-                found = False
-                results = []
-                for row in reader[1:]:
-                    if phone_clean in ' '.join(row):
-                        found = True
-                        results.append({headers_row[i]: row[i] for i in range(len(headers_row)) if i < len(row) and row[i]})
-                if found:
-                    return {"source": "intelx", "data": results}
-                return {"source": "intelx", "error": "Ничего не найдено"}
-            return {"source": "intelx", "error": "Данных нет"}
-        return {"source": "intelx", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "intelx", "error": str(e)}
-
-# ==================== ПАРСЕРЫ ====================
-
-def search_rusfinder(query, search_type):
-    try:
-        params = {"q": query}
-        if search_type:
-            params["type"] = search_type
-        r = requests.get(RUSFINDER_URL, params=params, timeout=15)
-        if r.status_code == 200:
-            return {"source": "rusfinder", "data": r.text[:1000]}
-        return {"source": "rusfinder", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "rusfinder", "error": str(e)}
-
-def search_phoneradar(phone):
-    try:
-        phone_clean = re.sub(r'[\s()+-]', '', phone)
-        r = requests.get(f"{PHONERADAR_URL}/{phone_clean}", timeout=15)
-        if r.status_code == 200:
-            return {"source": "phoneradar", "data": r.text[:500]}
-        return {"source": "phoneradar", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "phoneradar", "error": str(e)}
-
-def search_topdb(username):
-    try:
-        r = requests.get(f"{TOPDB_URL}/{username}", timeout=15)
-        if r.status_code == 200:
-            return {"source": "topdb", "data": r.text[:500]}
-        return {"source": "topdb", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "topdb", "error": str(e)}
-
-def search_photomap(query):
-    try:
-        params = {"q": query}
-        r = requests.get(PHOTOMAP_URL, params=params, timeout=15)
-        if r.status_code == 200:
-            return {"source": "photomap", "data": r.text[:500]}
-        return {"source": "photomap", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "photomap", "error": str(e)}
-
-def search_checkhost(ip):
-    try:
-        r = requests.get(f"{CHECKHOST_URL}/{ip}", timeout=15)
-        if r.status_code == 200:
-            return {"source": "checkhost", "data": r.json()}
-        return {"source": "checkhost", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "checkhost", "error": str(e)}
-
-def search_iknow(ip):
-    try:
-        r = requests.get(f"{IKNOW_URL}/{ip}", timeout=15)
-        if r.status_code == 200:
-            return {"source": "iknow", "data": r.text[:500]}
-        return {"source": "iknow", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "iknow", "error": str(e)}
-
-def search_spravkaru(query):
-    try:
-        params = {"q": query}
-        r = requests.get(SPRAVKARU_URL, params=params, timeout=15)
-        if r.status_code == 200:
-            return {"source": "spravkaru", "data": r.text[:500]}
-        return {"source": "spravkaru", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "spravkaru", "error": str(e)}
-
-def search_skyperesolver(username):
-    try:
-        params = {"username": username}
-        r = requests.get(SKYPERESOLVER_URL, params=params, timeout=15)
-        if r.status_code == 200:
-            return {"source": "skyperesolver", "data": r.text[:500]}
-        return {"source": "skyperesolver", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "skyperesolver", "error": str(e)}
-
-def search_bigbookname(username):
-    try:
-        r = requests.get(f"{BIGBOOKNAME_URL}/{username}", timeout=15)
-        if r.status_code == 200:
-            return {"source": "bigbookname", "data": r.text[:500]}
-        return {"source": "bigbookname", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "bigbookname", "error": str(e)}
-
-# ==================== СТАРЫЕ ИСТОЧНИКИ ====================
-
+# ==================== ОСТАЛЬНЫЕ ИСТОЧНИКИ ====================
 def search_anyscan(query, search_type):
     type_map = {"phone": "phone", "email": "email", "fio": "name", "inn": "inn", "snils": "snils", "passport": "passport"}
     if search_type not in type_map:
@@ -396,8 +267,26 @@ def search_cerera(query, search_type):
     except Exception as e:
         return {"source": "cerera", "error": str(e)}
 
-# ==================== ОСНОВНОЙ ПОИСК ====================
+# ==================== LEAKOSINT (ВРЕМЕННО ОТКЛЮЧЁН) ====================
+# def search_leakosint(query, limit=100, lang="ru"):
+#     data = {
+#         "token": LEAKOSINT_TOKEN,
+#         "request": query,
+#         "limit": limit,
+#         "lang": lang
+#     }
+#     try:
+#         r = requests.post(LEAKOSINT_URL, json=data, timeout=30)
+#         if r.status_code == 200:
+#             result = r.json()
+#             if "Error code" in result:
+#                 return {"source": "leakosint", "error": f"{result.get('Error code')}: {result.get('Message', '')}"}
+#             return {"source": "leakosint", "data": result}
+#         return {"source": "leakosint", "error": f"HTTP {r.status_code}"}
+#     except Exception as e:
+#         return {"source": "leakosint", "error": str(e)}
 
+# ==================== ПОИСК ====================
 @app.route('/search', methods=['POST'])
 def search():
     if not check_api_key():
@@ -424,19 +313,12 @@ def search():
         "sources": []
     }
     
-    # LEAK OSINT
-    if search_type in ["phone", "email", "fio", "username", "vk", "inn", "snils", "passport", "auto"]:
+    # BIGBASE (ОСНОВНОЙ)
+    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         try:
-            result["sources"].append(search_leakosint(query))
+            result["sources"].append(search_bigbase(query, search_type))
         except Exception as e:
-            result["sources"].append({"source": "leakosint", "error": str(e)})
-    
-    # INTELX (только для телефона)
-    if search_type == "phone":
-        try:
-            result["sources"].append(search_intelx(query))
-        except Exception as e:
-            result["sources"].append({"source": "intelx", "error": str(e)})
+            result["sources"].append({"source": "bigbase", "error": str(e)})
     
     # ANYSCAN
     if search_type in ["phone", "email", "fio", "inn", "snils", "passport"]:
@@ -487,65 +369,16 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "cerera", "error": str(e)})
     
-    # ПАРСЕРЫ
-    if search_type in ["phone", "email", "fio", "username"]:
-        try:
-            result["sources"].append(search_rusfinder(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "rusfinder", "error": str(e)})
-    
-    if search_type == "phone":
-        try:
-            result["sources"].append(search_phoneradar(query))
-        except Exception as e:
-            result["sources"].append({"source": "phoneradar", "error": str(e)})
-    
-    if search_type in ["vk", "username"]:
-        try:
-            result["sources"].append(search_topdb(query))
-        except Exception as e:
-            result["sources"].append({"source": "topdb", "error": str(e)})
-    
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_checkhost(query))
-        except Exception as e:
-            result["sources"].append({"source": "checkhost", "error": str(e)})
-    
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_iknow(query))
-        except Exception as e:
-            result["sources"].append({"source": "iknow", "error": str(e)})
-    
-    if search_type == "fio":
-        try:
-            result["sources"].append(search_spravkaru(query))
-        except Exception as e:
-            result["sources"].append({"source": "spravkaru", "error": str(e)})
-    
-    if search_type == "username":
-        try:
-            result["sources"].append(search_skyperesolver(query))
-        except Exception as e:
-            result["sources"].append({"source": "skyperesolver", "error": str(e)})
-    
-    if search_type in ["vk", "username"]:
-        try:
-            result["sources"].append(search_bigbookname(query))
-        except Exception as e:
-            result["sources"].append({"source": "bigbookname", "error": str(e)})
-    
-    if search_type == "fio":
-        try:
-            result["sources"].append(search_photomap(query))
-        except Exception as e:
-            result["sources"].append({"source": "photomap", "error": str(e)})
+    # LEAKOSINT (ВРЕМЕННО ОТКЛЮЧЁН)
+    # if search_type in ["phone", "email", "fio", "username", "vk", "inn", "snils", "passport", "auto"]:
+    #     try:
+    #         result["sources"].append(search_leakosint(query))
+    #     except Exception as e:
+    #         result["sources"].append({"source": "leakosint", "error": str(e)})
     
     return jsonify(result)
 
 # ==================== TEMPMAIL ====================
-
 @app.route('/tempmail/generate', methods=['GET'])
 def tempmail_generate():
     if not check_api_key():
@@ -571,7 +404,6 @@ def tempmail_check(token):
         return jsonify({"error": str(e)}), 500
 
 # ==================== HEALTH ====================
-
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
@@ -580,15 +412,20 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "9.0",
-        "description": "OSINT-агрегатор + парсеры",
+        "version": "10.0",
+        "description": "OSINT-агрегатор",
         "author": "@kmyfg",
         "sources": [
-            "LeakOSINT", "IntelX", "AnyScan", "Jitler", "VK",
-            "AbuseIPDB", "OFDATA", "Snusbase", "Cerera",
-            "RusFinder", "PhoneRadar", "TopDB", "PhotoMap",
-            "CheckHost", "IKnow", "SpravkaRu", "Skyperesolver", "BigBookName"
-        ]
+            "BigBase",
+            "AnyScan",
+            "Jitler",
+            "VK",
+            "AbuseIPDB",
+            "OFDATA",
+            "Snusbase",
+            "Cerera"
+        ],
+        "note": "LeakOSINT временно отключён"
     })
 
 if __name__ == '__main__':
