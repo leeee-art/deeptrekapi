@@ -6,6 +6,7 @@ import re
 import csv
 import io
 import time
+import asyncio
 from datetime import datetime
 from typing import Tuple, Optional
 
@@ -18,6 +19,14 @@ MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 # BIGBASE (ОСНОВНОЙ)
 BIGBASE_KEY = "8JsPp38dXVdQI5OAXxQlwgQRNvhcDD2Q"
 BIGBASE_URL = "https://bigbase.top/api/search"
+
+# DEPSEARCH (НОВЫЙ - ОСНОВНОЙ)
+DEPSEARCH_TOKEN = "OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z"
+DEPSEARCH_URL = "https://api.depsearch.sbs/quest"
+
+# INFINITY SEARCH (НОВЫЙ - ДОПОЛНИТЕЛЬНЫЙ)
+INFINITY_TOKEN = "Bjm928HUcvsw923ZMBX19gd110FWSZgd"
+INFINITY_URL = "https://infinity-search.fun/find.php"
 
 # ANYSCAN (duckdns)
 ANYSCAN_TOKEN = "oxYKwwEN2kvMyG7advJ3DQ"
@@ -46,10 +55,6 @@ SNUSBASE_URL = "https://api.snusbase.com/data/search"
 # CERERA (если будет баланс)
 CERERA_TOKEN = "ca_4oOeTcjU0dYTU_O6yl1Spg5s2JzseZEzVr2_dYL7rmI"
 CERERA_URL = "https://cerera.cc/api"
-
-# ==================== LEAKOSINT (ВРЕМЕННО ОТКЛЮЧЁН) ====================
-# LEAKOSINT_TOKEN = "76572095882:app:WRfKwOvV"
-# LEAKOSINT_URL = "https://leakosintapi.com/"
 
 # ==================== ФУНКЦИЯ СКРЫТИЯ ====================
 def sanitize_response(data):
@@ -139,6 +144,78 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
 
 def check_api_key():
     return request.headers.get('X-API-Key') == MASTER_KEY
+
+# ==================== DEPSEARCH (НОВЫЙ) ====================
+def search_depsearch(query, search_type):
+    """Поиск через DepSearch API — 269+ результатов"""
+    type_map = {
+        "phone": "phone",
+        "email": "email", 
+        "fio": "name",
+        "vk": "vk",
+        "telegram": "telegram"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "depsearch", "error": "Тип не поддерживается"}
+    
+    try:
+        params = {
+            "quest": query,
+            "type": type_map[search_type],
+            "token": DEPSEARCH_TOKEN
+        }
+        r = requests.get(DEPSEARCH_URL, params=params, timeout=30)
+        
+        if r.status_code == 200:
+            data = r.json()
+            if "error" not in data:
+                results = data.get("results", [])
+                return {
+                    "source": "depsearch", 
+                    "data": {
+                        "total": len(results),
+                        "results": results[:20]  # Ограничиваем для скорости
+                    }
+                }
+            return {"source": "depsearch", "error": data.get("error")}
+        elif r.status_code == 429:
+            return {"source": "depsearch", "error": "Лимит запросов DepSearch"}
+        else:
+            return {"source": "depsearch", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "depsearch", "error": str(e)}
+
+# ==================== INFINITY SEARCH (НОВЫЙ) ====================
+def search_infinity(query, search_type):
+    """Поиск через Infinity Search API — 25+ результатов"""
+    if search_type not in ["phone", "email", "fio"]:
+        return {"source": "infinity", "error": "Тип не поддерживается"}
+    
+    try:
+        params = {
+            "token": INFINITY_TOKEN,
+            search_type: query
+        }
+        r = requests.get(INFINITY_URL, params=params, timeout=15)
+        
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("results"):
+                return {
+                    "source": "infinity",
+                    "data": {
+                        "total": len(data["results"]),
+                        "results": data["results"][:20]
+                    }
+                }
+            return {"source": "infinity", "error": "Ничего не найдено"}
+        elif r.status_code == 429:
+            return {"source": "infinity", "error": "Лимит запросов Infinity"}
+        else:
+            return {"source": "infinity", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "infinity", "error": str(e)}
 
 # ==================== BIGBASE (ОСНОВНОЙ) ====================
 def search_bigbase(query, search_type):
@@ -267,26 +344,7 @@ def search_cerera(query, search_type):
     except Exception as e:
         return {"source": "cerera", "error": str(e)}
 
-# ==================== LEAKOSINT (ВРЕМЕННО ОТКЛЮЧЁН) ====================
-# def search_leakosint(query, limit=100, lang="ru"):
-#     data = {
-#         "token": LEAKOSINT_TOKEN,
-#         "request": query,
-#         "limit": limit,
-#         "lang": lang
-#     }
-#     try:
-#         r = requests.post(LEAKOSINT_URL, json=data, timeout=30)
-#         if r.status_code == 200:
-#             result = r.json()
-#             if "Error code" in result:
-#                 return {"source": "leakosint", "error": f"{result.get('Error code')}: {result.get('Message', '')}"}
-#             return {"source": "leakosint", "data": result}
-#         return {"source": "leakosint", "error": f"HTTP {r.status_code}"}
-#     except Exception as e:
-#         return {"source": "leakosint", "error": str(e)}
-
-# ==================== ПОИСК ====================
+# ==================== ПОИСК (ОБНОВЛЁННЫЙ) ====================
 @app.route('/search', methods=['POST'])
 def search():
     if not check_api_key():
@@ -312,6 +370,24 @@ def search():
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
+    
+    # ===== НОВЫЕ API (ПРИОРИТЕТНЫЕ) =====
+    
+    # DEPSEARCH (ОСНОВНОЙ - 269+ результатов)
+    if search_type in ["phone", "email", "fio", "vk", "telegram"]:
+        try:
+            dep_result = search_depsearch(query, search_type)
+            result["sources"].append(dep_result)
+        except Exception as e:
+            result["sources"].append({"source": "depsearch", "error": str(e)})
+    
+    # INFINITY (ДОПОЛНИТЕЛЬНЫЙ - 25+ результатов)
+    if search_type in ["phone", "email", "fio"]:
+        try:
+            inf_result = search_infinity(query, search_type)
+            result["sources"].append(inf_result)
+        except Exception as e:
+            result["sources"].append({"source": "infinity", "error": str(e)})
     
     # BIGBASE (ОСНОВНОЙ)
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
@@ -369,13 +445,6 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "cerera", "error": str(e)})
     
-    # LEAKOSINT (ВРЕМЕННО ОТКЛЮЧЁН)
-    # if search_type in ["phone", "email", "fio", "username", "vk", "inn", "snils", "passport", "auto"]:
-    #     try:
-    #         result["sources"].append(search_leakosint(query))
-    #     except Exception as e:
-    #         result["sources"].append({"source": "leakosint", "error": str(e)})
-    
     return jsonify(result)
 
 # ==================== TEMPMAIL ====================
@@ -412,10 +481,12 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "10.0",
-        "description": "OSINT-агрегатор",
+        "version": "10.1",
+        "description": "OSINT-агрегатор с DepSearch и Infinity",
         "author": "@kmyfg",
         "sources": [
+            "DepSearch (НОВЫЙ - ОСНОВНОЙ)",
+            "Infinity (НОВЫЙ - ДОПОЛНИТЕЛЬНЫЙ)",
             "BigBase",
             "AnyScan",
             "Jitler",
@@ -425,7 +496,10 @@ def index():
             "Snusbase",
             "Cerera"
         ],
-        "note": "LeakOSINT временно отключён"
+        "stats": {
+            "depsearch": "269+ результатов по телефону",
+            "infinity": "25+ результатов по телефону"
+        }
     })
 
 if __name__ == '__main__':
