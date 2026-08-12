@@ -4,6 +4,8 @@ import requests
 import json
 import re
 import time
+import csv
+import io
 from datetime import datetime
 from typing import Tuple, Optional
 
@@ -15,9 +17,9 @@ MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 
 # ==================== ВСЕ КЛЮЧИ ====================
 
-# NYX API (НОВЫЙ - РАБОТАЕТ!)
-NYX_SERVER = "https://api.w2sp3r.biz"
-NYX_CLIENT_TOKEN = "Mg05qwg9kfJZgMA1sUshI_-LxS6c33iQWR4JslZRubc"
+# NYX API (ЗАКОММЕНТИРОВАН)
+# NYX_SERVER = "https://api.w2sp3r.biz"
+# NYX_CLIENT_TOKEN = "Mg05qwg9kfJZgMA1sUshI_-LxS6c33iQWR4JslZRubc"
 
 # INFINITY SEARCH
 INFINITY_TOKEN = "Bjm928HUcvsw923ZMBX19gd110FWSZgd"
@@ -27,13 +29,13 @@ INFINITY_URL = "https://infinity-search.fun/find.php"
 BIGBASE_KEY = "8JsPp38dXVdQI5OAXxQlwgQRNvhcDD2Q"
 BIGBASE_URL = "https://bigbase.top/api/search"
 
-# ANYSCAN
-ANYSCAN_TOKEN = "oxYKwwEN2kvMyG7advJ3DQ"
-ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
-
 # JITLER
 JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
 JITLER_URL = "https://api.jitler.top"
+
+# ANYSCAN
+ANYSCAN_TOKEN = "oxYKwwEN2kvMyG7advJ3DQ"
+ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 # VK
 VK_TOKEN = "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c"
@@ -51,80 +53,102 @@ OFDATA_URL = "https://api.ofdata.ru/v2/search"
 SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
-# CERERA
-CERERA_TOKEN = "ca_4oOeTcjU0dYTU_O6yl1Spg5s2JzseZEzVr2_dYL7rmI"
-CERERA_URL = "https://cerera.cc/api"
+# CERERA (ОТКЛЮЧЁН)
+# CERERA_TOKEN = "ca_4oOeTcjU0dYTU_O6yl1Spg5s2JzseZEzVr2_dYL7rmI"
+# CERERA_URL = "https://cerera.cc/api"
 
 # DEPSEARCH (МЁРТВ - 403)
-DEPSEARCH_TOKEN = "OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z"
-DEPSEARCH_URL = "https://api.depsearch.sbs/quest"
+# DEPSEARCH_TOKEN = "OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z"
+# DEPSEARCH_URL = "https://api.depsearch.sbs/quest"
 
-# ==================== NYX API КЛИЕНТ ====================
-class NyxClient:
-    def __init__(self):
-        self.server = NYX_SERVER
-        self.client_token = NYX_CLIENT_TOKEN
-        self.last_request_time = 0
-        self.rate_limit_seconds = 60
-        
-    def _api_request(self, path, data=None, extra_headers=None):
-        body = None
-        if data is not None:
-            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json; charset=utf-8",
-            "User-Agent": "DeepTrek/1.0",
-            "Authorization": f"Bearer {self.client_token}",
-        }
-        if extra_headers:
-            headers.update(extra_headers)
-        
-        try:
-            if data:
-                response = requests.post(self.server + path, json=data, headers=headers, timeout=60)
-            else:
-                response = requests.get(self.server + path, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                return response.json()
-            return {"error": f"HTTP {response.status_code}"}
-        except Exception as e:
-            return {"error": str(e)}
-    
-    def search(self, query):
-        current_time = time.time()
-        if current_time - self.last_request_time < self.rate_limit_seconds:
-            wait_time = int(self.rate_limit_seconds - (current_time - self.last_request_time))
-            return {"error": f"NYX рейт-лимит: {wait_time}с"}
-        
-        key_response = self._api_request("/nyx/key")
-        if key_response.get("error"):
-            return {"error": f"NYX ключ: {key_response['error']}"}
-        
-        nyx_key = key_response.get("key")
-        if not nyx_key:
-            return {"error": "NYX: ключ не получен"}
-        
-        result = self._api_request(
-            "/nyx/search",
-            {"query": query},
-            {"X-Nyx-Key": nyx_key}
-        )
-        
-        self.last_request_time = time.time()
-        
-        if result.get("error"):
-            return {"error": f"NYX: {result['error']}"}
-        
-        return {
-            "source": "nyx",
-            "data": result.get("text", ""),
-            "raw": result
-        }
+# ==================== ФУНКЦИЯ СКРЫТИЯ BIGBASE ====================
+def sanitize_bigbase(data):
+    """Скрывает логин, токен и реферальную ссылку BigBase"""
+    if isinstance(data, dict):
+        for key, value in list(data.items()):
+            if key == "user" and isinstance(value, dict):
+                if "login" in value:
+                    value["login"] = "***"
+                if "api_token" in value:
+                    value["api_token"] = "***"
+                if "referral_url" in value:
+                    value["referral_url"] = "***"
+            elif key == "login":
+                data[key] = "***"
+            elif key == "api_token":
+                data[key] = "***"
+            elif key == "referral_url":
+                data[key] = "***"
+            elif isinstance(value, dict):
+                sanitize_bigbase(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        sanitize_bigbase(item)
+    return data
 
-nyx_client = NyxClient()
+# ==================== NYX API КЛИЕНТ (ЗАКОММЕНТИРОВАН) ====================
+# class NyxClient:
+#     def __init__(self):
+#         self.server = NYX_SERVER
+#         self.client_token = NYX_CLIENT_TOKEN
+#         self.last_request_time = 0
+#         self.rate_limit_seconds = 60
+#         
+#     def _api_request(self, path, data=None, extra_headers=None):
+#         body = None
+#         if data is not None:
+#             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+#         
+#         headers = {
+#             "Accept": "application/json",
+#             "Content-Type": "application/json; charset=utf-8",
+#             "User-Agent": "DeepTrek/1.0",
+#             "Authorization": f"Bearer {self.client_token}",
+#         }
+#         if extra_headers:
+#             headers.update(extra_headers)
+#         
+#         try:
+#             if data:
+#                 response = requests.post(self.server + path, json=data, headers=headers, timeout=60)
+#             else:
+#                 response = requests.get(self.server + path, headers=headers, timeout=30)
+#             
+#             if response.status_code == 200:
+#                 return response.json()
+#             return {"error": f"HTTP {response.status_code}"}
+#         except Exception as e:
+#             return {"error": str(e)}
+#     
+#     def search(self, query):
+#         current_time = time.time()
+#         if current_time - self.last_request_time < self.rate_limit_seconds:
+#             wait_time = int(self.rate_limit_seconds - (current_time - self.last_request_time))
+#             return {"source": "nyx", "error": f"Рейт-лимит: {wait_time}с"}
+#         
+#         key_response = self._api_request("/nyx/key")
+#         if key_response.get("error"):
+#             return {"source": "nyx", "error": f"Ключ: {key_response['error']}"}
+#         
+#         nyx_key = key_response.get("key")
+#         if not nyx_key:
+#             return {"source": "nyx", "error": "Ключ не получен"}
+#         
+#         result = self._api_request(
+#             "/nyx/search",
+#             {"query": query},
+#             {"X-Nyx-Key": nyx_key}
+#         )
+#         
+#         self.last_request_time = time.time()
+#         
+#         if result.get("error"):
+#             return {"source": "nyx", "error": result['error']}
+#         
+#         return {"source": "nyx", "data": result.get("text", ""), "raw": result}
+
+# nyx_client = NyxClient()
 
 # ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
@@ -182,15 +206,14 @@ def check_api_key():
 
 # ==================== ПОИСКОВЫЕ ФУНКЦИИ ====================
 
-def search_nyx(query):
-    """NYX API"""
-    try:
-        return nyx_client.search(query)
-    except Exception as e:
-        return {"source": "nyx", "error": str(e)}
+# ===== NYX (ЗАКОММЕНТИРОВАН) =====
+# def search_nyx(query):
+#     try:
+#         return nyx_client.search(query)
+#     except Exception as e:
+#         return {"source": "nyx", "error": str(e)}
 
 def search_infinity(query, search_type):
-    """Infinity Search API"""
     if search_type not in ["phone", "email", "fio"]:
         return {"source": "infinity", "error": "Тип не поддерживается"}
     try:
@@ -206,7 +229,6 @@ def search_infinity(query, search_type):
         return {"source": "infinity", "error": str(e)}
 
 def search_bigbase(query, search_type):
-    """BigBase API"""
     try:
         headers = {"Authorization": BIGBASE_KEY, "Content-Type": "application/json"}
         data = {"search": query}
@@ -214,28 +236,108 @@ def search_bigbase(query, search_type):
             data["type"] = search_type
         r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
         if r.status_code == 200:
-            return {"source": "bigbase", "data": r.json()}
+            result = r.json()
+            result = sanitize_bigbase(result)  # Скрываем логин и токен
+            return {"source": "bigbase", "data": result}
         return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
 def search_jitler(query, search_type):
-    """Jitler API"""
-    type_map = {"phone": "number", "telegram_username": "sherlock", "telegram_id": "sherlock", "vk": "vks"}
-    if search_type not in type_map:
-        return {"source": "jitler", "error": "Тип не поддерживается"}
+    """Jitler API — Telegram Sherlock"""
+    if search_type not in ["telegram_username", "telegram_id", "telegram"]:
+        return {"source": "jitler", "error": "Jitler поддерживает только поиск по Telegram"}
+    
     try:
         headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
-        data = {"type": type_map[search_type], "query": query, "page": 1}
-        r = requests.post(f"{JITLER_URL}/search", headers=headers, json=data, timeout=30)
+        payload = {"type": "sherlock", "query": query, "page": 1}
+        
+        r = requests.post(f"{JITLER_URL}/search", headers=headers, json=payload, timeout=30)
+        
         if r.status_code == 200:
-            return {"source": "jitler", "data": r.json()}
-        return {"source": "jitler", "error": f"HTTP {r.status_code}"}
+            data = r.json()
+            response = data.get("response", {})
+            return {
+                "source": "jitler",
+                "data": {
+                    "telegram": response.get("telegram", []),
+                    "phonebooks": response.get("phonebooks", []),
+                    "profiles": response.get("profiles", {}),
+                    "raw": response.get("raw", ""),
+                    "counts": response.get("counts", {})
+                }
+            }
+        elif r.status_code == 429:
+            return {"source": "jitler", "error": "Лимит запросов (429)"}
+        elif r.status_code == 401:
+            return {"source": "jitler", "error": "Неверный токен (401)"}
+        elif r.status_code == 402:
+            return {"source": "jitler", "error": "Недостаточно средств (402)"}
+        else:
+            return {"source": "jitler", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
+def search_jitler_phone(query):
+    """Jitler API — поиск по телефону"""
+    try:
+        headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
+        payload = {"type": "number", "query": query, "page": 1}
+        
+        r = requests.post(f"{JITLER_URL}/search", headers=headers, json=payload, timeout=30)
+        
+        if r.status_code == 200:
+            data = r.json()
+            return {"source": "jitler_phone", "data": data.get("response", {})}
+        return {"source": "jitler_phone", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "jitler_phone", "error": str(e)}
+
+def search_intelx_phone(phone):
+    """IntelX парсер — saverudata"""
+    try:
+        phone_clean = re.sub(r'\D', '', phone)
+        
+        if len(phone_clean) < 8:
+            return {"source": "intelx", "error": "Номер слишком короткий"}
+        
+        url = f'https://data.intelx.io/saverudata/db2/dbpn/{phone_clean[:2]}/{phone_clean[2:4]}/{phone_clean[4:6]}/{phone_clean[6:8]}.csv'
+        
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        
+        response = requests.get(url, headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            csv_data = list(csv.reader(io.StringIO(response.text)))
+            
+            if len(csv_data) > 1:
+                headers_row = csv_data[0]
+                results = []
+                
+                for row in csv_data[1:]:
+                    row_text = ' '.join(row)
+                    if phone_clean in row_text:
+                        result = {}
+                        for idx, value in enumerate(row):
+                            if idx < len(headers_row) and value:
+                                result[headers_row[idx]] = value
+                        results.append(result)
+                
+                if results:
+                    return {
+                        "source": "intelx",
+                        "data": {
+                            "total": len(results),
+                            "results": results[:20]
+                        }
+                    }
+                return {"source": "intelx", "error": "Номер не найден"}
+            return {"source": "intelx", "error": "CSV пустой"}
+        return {"source": "intelx", "error": f"Данных нет (HTTP {response.status_code})"}
+    except Exception as e:
+        return {"source": "intelx", "error": str(e)}
+
 def search_vk(query):
-    """VK API"""
     try:
         params = {"access_token": VK_TOKEN, "v": "5.131", "user_ids": query, "fields": "first_name,last_name,status,sex,country"}
         r = requests.get(VK_API, params=params, timeout=30)
@@ -248,7 +350,6 @@ def search_vk(query):
         return {"source": "vk", "error": str(e)}
 
 def search_abuseipdb(ip):
-    """AbuseIPDB API"""
     try:
         headers = {"Key": ABUSEIPDB_KEY, "Accept": "application/json"}
         params = {"ipAddress": ip, "maxAgeInDays": 90}
@@ -261,7 +362,6 @@ def search_abuseipdb(ip):
         return {"source": "abuseipdb", "error": str(e)}
 
 def search_ofdata(query, search_type):
-    """OFDATA API"""
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "Тип не поддерживается"}
     try:
@@ -279,7 +379,6 @@ def search_ofdata(query, search_type):
         return {"source": "ofdata", "error": str(e)}
 
 def search_snusbase(query, search_type):
-    """Snusbase API"""
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Тип не поддерживается"}
     try:
@@ -295,22 +394,22 @@ def search_snusbase(query, search_type):
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
-def search_cerera(query, search_type):
-    """Cerera API"""
-    valid_types = ["phone", "fio", "email", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]
-    if search_type not in valid_types:
-        return {"source": "cerera", "error": "Тип не поддерживается"}
-    try:
-        params = {"token": CERERA_TOKEN, "type": search_type, "q": query}
-        r = requests.get(CERERA_URL, params=params, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("status") == "success":
-                return {"source": "cerera", "data": data.get("data"), "balance": data.get("remaining_balance")}
-            return {"source": "cerera", "error": data.get("error", "Неизвестная ошибка")}
-        return {"source": "cerera", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "cerera", "error": str(e)}
+# CERERA (ОТКЛЮЧЕН)
+# def search_cerera(query, search_type):
+#     valid_types = ["phone", "fio", "email", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]
+#     if search_type not in valid_types:
+#         return {"source": "cerera", "error": "Тип не поддерживается"}
+#     try:
+#         params = {"token": CERERA_TOKEN, "type": search_type, "q": query}
+#         r = requests.get(CERERA_URL, params=params, timeout=30)
+#         if r.status_code == 200:
+#             data = r.json()
+#             if data.get("status") == "success":
+#                 return {"source": "cerera", "data": data.get("data"), "balance": data.get("remaining_balance")}
+#             return {"source": "cerera", "error": data.get("error", "Неизвестная ошибка")}
+#         return {"source": "cerera", "error": f"HTTP {r.status_code}"}
+#     except Exception as e:
+#         return {"source": "cerera", "error": str(e)}
 
 # ==================== ГЛАВНЫЙ ЭНДПОИНТ ПОИСКА ====================
 @app.route('/search', methods=['POST'])
@@ -339,12 +438,11 @@ def search():
         "sources": []
     }
     
-    # ===== NYX (НОВЫЙ - ПРИОРИТЕТ) =====
-    try:
-        nyx_result = search_nyx(query)
-        result["sources"].append(nyx_result)
-    except Exception as e:
-        result["sources"].append({"source": "nyx", "error": str(e)})
+    # ===== NYX (ЗАКОММЕНТИРОВАН) =====
+    # try:
+    #     result["sources"].append(search_nyx(query))
+    # except Exception as e:
+    #     result["sources"].append({"source": "nyx", "error": str(e)})
     
     # ===== INFINITY =====
     if search_type in ["phone", "email", "fio"]:
@@ -353,19 +451,33 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "infinity", "error": str(e)})
     
+    # ===== JITLER TELEGRAM =====
+    if search_type in ["telegram_username", "telegram_id", "telegram"]:
+        try:
+            result["sources"].append(search_jitler(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "jitler", "error": str(e)})
+    
+    # ===== JITLER PHONE =====
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_jitler_phone(query))
+        except Exception as e:
+            result["sources"].append({"source": "jitler_phone", "error": str(e)})
+    
+    # ===== INTELX ПАРСЕР =====
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_intelx_phone(query))
+        except Exception as e:
+            result["sources"].append({"source": "intelx", "error": str(e)})
+    
     # ===== BIGBASE =====
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         try:
             result["sources"].append(search_bigbase(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "bigbase", "error": str(e)})
-    
-    # ===== JITLER =====
-    if search_type in ["phone", "vk", "telegram_username", "telegram_id"]:
-        try:
-            result["sources"].append(search_jitler(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "jitler", "error": str(e)})
     
     # ===== VK =====
     if search_type == "vk":
@@ -395,12 +507,12 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "snusbase", "error": str(e)})
     
-    # ===== CERERA =====
-    if search_type in ["phone", "email", "fio", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]:
-        try:
-            result["sources"].append(search_cerera(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "cerera", "error": str(e)})
+    # ===== CERERA (ОТКЛЮЧЕН) =====
+    # if search_type in ["phone", "email", "fio", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]:
+    #     try:
+    #         result["sources"].append(search_cerera(query, search_type))
+    #     except Exception as e:
+    #         result["sources"].append({"source": "cerera", "error": str(e)})
     
     return jsonify(result)
 
@@ -434,23 +546,26 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "11.0",
-        "description": "OSINT-агрегатор с NYX, Infinity и другими",
+        "version": "12.1",
+        "description": "OSINT-агрегатор с Infinity, Jitler, IntelX, BigBase и другими",
         "author": "@kmyfg",
         "sources": [
-            "NYX (НОВЫЙ - ОСНОВНОЙ) ✅",
-            "Infinity ✅",
-            "BigBase",
+            "Infinity",
+            "Jitler (Telegram Sherlock)",
+            "Jitler (Phone)",
+            "IntelX (saverudata)",
+            "BigBase (с скрытием логина/токена)",
             "AnyScan",
-            "Jitler",
             "VK",
             "AbuseIPDB",
             "OFDATA",
-            "Snusbase",
-            "Cerera"
+            "Snusbase"
         ],
-        "nyx_status": "работает, 34464 символов по телефону",
-        "rate_limit": "NYX: 60 сек между запросами"
+        "disabled": [
+            "NYX (закомментирован)",
+            "Cerera (отключён)"
+        ],
+        "bigbase": "логин и токен скрыты"
     })
 
 if __name__ == '__main__':
