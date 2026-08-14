@@ -8,6 +8,7 @@ import csv
 import io
 from datetime import datetime
 from typing import Tuple, Optional
+from funstat_api import FunstatClient
 
 app = Flask(__name__)
 CORS(app)
@@ -17,9 +18,9 @@ MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 
 # ==================== ВСЕ КЛЮЧИ ====================
 
-# NYX API (ЗАКОММЕНТИРОВАН)
-# NYX_SERVER = "https://api.w2sp3r.biz"
-# NYX_CLIENT_TOKEN = "Mg05qwg9kfJZgMA1sUshI_-LxS6c33iQWR4JslZRubc"
+# WHITE SEARCH
+WHITE_SEARCH_KEY = "WS-PUBLIC-9X7K-2M4P"
+WHITE_SEARCH_URL = "https://api.whitesearch.workers.dev/api"
 
 # INFINITY SEARCH
 INFINITY_TOKEN = "Bjm928HUcvsw923ZMBX19gd110FWSZgd"
@@ -32,10 +33,6 @@ BIGBASE_URL = "https://bigbase.top/api/search"
 # JITLER
 JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
 JITLER_URL = "https://api.jitler.top"
-
-# ANYSCAN
-ANYSCAN_TOKEN = "oxYKwwEN2kvMyG7advJ3DQ"
-ANYSCAN_URL = "https://anyscan.duckdns.org/api/v1/search"
 
 # VK
 VK_TOKEN = "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c"
@@ -53,17 +50,11 @@ OFDATA_URL = "https://api.ofdata.ru/v2/search"
 SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
-# CERERA (ОТКЛЮЧЁН)
-# CERERA_TOKEN = "ca_4oOeTcjU0dYTU_O6yl1Spg5s2JzseZEzVr2_dYL7rmI"
-# CERERA_URL = "https://cerera.cc/api"
-
-# DEPSEARCH (МЁРТВ - 403)
-# DEPSEARCH_TOKEN = "OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z"
-# DEPSEARCH_URL = "https://api.depsearch.sbs/quest"
+# FUNSTAT
+FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
 
 # ==================== ФУНКЦИЯ СКРЫТИЯ BIGBASE ====================
 def sanitize_bigbase(data):
-    """Скрывает логин, токен и реферальную ссылку BigBase"""
     if isinstance(data, dict):
         for key, value in list(data.items()):
             if key == "user" and isinstance(value, dict):
@@ -86,69 +77,6 @@ def sanitize_bigbase(data):
                     if isinstance(item, dict):
                         sanitize_bigbase(item)
     return data
-
-# ==================== NYX API КЛИЕНТ (ЗАКОММЕНТИРОВАН) ====================
-# class NyxClient:
-#     def __init__(self):
-#         self.server = NYX_SERVER
-#         self.client_token = NYX_CLIENT_TOKEN
-#         self.last_request_time = 0
-#         self.rate_limit_seconds = 60
-#         
-#     def _api_request(self, path, data=None, extra_headers=None):
-#         body = None
-#         if data is not None:
-#             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-#         
-#         headers = {
-#             "Accept": "application/json",
-#             "Content-Type": "application/json; charset=utf-8",
-#             "User-Agent": "DeepTrek/1.0",
-#             "Authorization": f"Bearer {self.client_token}",
-#         }
-#         if extra_headers:
-#             headers.update(extra_headers)
-#         
-#         try:
-#             if data:
-#                 response = requests.post(self.server + path, json=data, headers=headers, timeout=60)
-#             else:
-#                 response = requests.get(self.server + path, headers=headers, timeout=30)
-#             
-#             if response.status_code == 200:
-#                 return response.json()
-#             return {"error": f"HTTP {response.status_code}"}
-#         except Exception as e:
-#             return {"error": str(e)}
-#     
-#     def search(self, query):
-#         current_time = time.time()
-#         if current_time - self.last_request_time < self.rate_limit_seconds:
-#             wait_time = int(self.rate_limit_seconds - (current_time - self.last_request_time))
-#             return {"source": "nyx", "error": f"Рейт-лимит: {wait_time}с"}
-#         
-#         key_response = self._api_request("/nyx/key")
-#         if key_response.get("error"):
-#             return {"source": "nyx", "error": f"Ключ: {key_response['error']}"}
-#         
-#         nyx_key = key_response.get("key")
-#         if not nyx_key:
-#             return {"source": "nyx", "error": "Ключ не получен"}
-#         
-#         result = self._api_request(
-#             "/nyx/search",
-#             {"query": query},
-#             {"X-Nyx-Key": nyx_key}
-#         )
-#         
-#         self.last_request_time = time.time()
-#         
-#         if result.get("error"):
-#             return {"source": "nyx", "error": result['error']}
-#         
-#         return {"source": "nyx", "data": result.get("text", ""), "raw": result}
-
-# nyx_client = NyxClient()
 
 # ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
@@ -206,13 +134,59 @@ def check_api_key():
 
 # ==================== ПОИСКОВЫЕ ФУНКЦИИ ====================
 
-# ===== NYX (ЗАКОММЕНТИРОВАН) =====
-# def search_nyx(query):
-#     try:
-#         return nyx_client.search(query)
-#     except Exception as e:
-#         return {"source": "nyx", "error": str(e)}
+# ===== WHITE SEARCH =====
+def search_white_search(query, search_type):
+    type_map = {
+        "phone": "/search/phone",
+        "email": "/search/email",
+        "telegram": "/search/telegram",
+        "telegram_id": "/search/telegram",
+        "telegram_username": "/search/telegram",
+        "vk": "/search/vk",
+        "fio": "/search/fio",
+        "ip": "/search/ip",
+        "snils": "/search/snils",
+        "inn": "/search/inn",
+        "passport": "/search/passport"
+    }
+    
+    if search_type not in type_map:
+        return {"source": "white_search", "error": "Тип не поддерживается"}
+    
+    try:
+        endpoint = type_map[search_type]
+        url = f"{WHITE_SEARCH_URL}{endpoint}"
+        headers = {"X-API-Key": WHITE_SEARCH_KEY}
+        
+        params = {}
+        if search_type in ["phone", "email", "fio", "ip", "snils", "inn", "passport"]:
+            params = {search_type: query}
+        elif search_type in ["telegram", "telegram_id", "telegram_username"]:
+            params = {"id": query}
+        elif search_type == "vk":
+            params = {"id": query}
+        
+        response = requests.get(url, params=params, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("success") and data.get("data"):
+                return {
+                    "source": "white_search",
+                    "data": {
+                        "total": len(data.get("data", [])),
+                        "results": data.get("data", [])
+                    }
+                }
+            return {"source": "white_search", "error": "Ничего не найдено"}
+        elif response.status_code == 429:
+            return {"source": "white_search", "error": "Дневной лимит исчерпан"}
+        else:
+            return {"source": "white_search", "error": f"HTTP {response.status_code}"}
+    except Exception as e:
+        return {"source": "white_search", "error": str(e)}
 
+# ===== INFINITY =====
 def search_infinity(query, search_type):
     if search_type not in ["phone", "email", "fio"]:
         return {"source": "infinity", "error": "Тип не поддерживается"}
@@ -228,6 +202,7 @@ def search_infinity(query, search_type):
     except Exception as e:
         return {"source": "infinity", "error": str(e)}
 
+# ===== BIGBASE =====
 def search_bigbase(query, search_type):
     try:
         headers = {"Authorization": BIGBASE_KEY, "Content-Type": "application/json"}
@@ -237,14 +212,14 @@ def search_bigbase(query, search_type):
         r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
         if r.status_code == 200:
             result = r.json()
-            result = sanitize_bigbase(result)  # Скрываем логин и токен
+            result = sanitize_bigbase(result)
             return {"source": "bigbase", "data": result}
         return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
 
+# ===== JITLER TELEGRAM =====
 def search_jitler(query, search_type):
-    """Jitler API — Telegram Sherlock"""
     if search_type not in ["telegram_username", "telegram_id", "telegram"]:
         return {"source": "jitler", "error": "Jitler поддерживает только поиск по Telegram"}
     
@@ -278,8 +253,8 @@ def search_jitler(query, search_type):
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
+# ===== JITLER PHONE =====
 def search_jitler_phone(query):
-    """Jitler API — поиск по телефону"""
     try:
         headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
         payload = {"type": "number", "query": query, "page": 1}
@@ -293,8 +268,8 @@ def search_jitler_phone(query):
     except Exception as e:
         return {"source": "jitler_phone", "error": str(e)}
 
+# ===== INTELX =====
 def search_intelx_phone(phone):
-    """IntelX парсер — saverudata"""
     try:
         phone_clean = re.sub(r'\D', '', phone)
         
@@ -337,6 +312,7 @@ def search_intelx_phone(phone):
     except Exception as e:
         return {"source": "intelx", "error": str(e)}
 
+# ===== VK =====
 def search_vk(query):
     try:
         params = {"access_token": VK_TOKEN, "v": "5.131", "user_ids": query, "fields": "first_name,last_name,status,sex,country"}
@@ -349,6 +325,7 @@ def search_vk(query):
     except Exception as e:
         return {"source": "vk", "error": str(e)}
 
+# ===== ABUSEIPDB =====
 def search_abuseipdb(ip):
     try:
         headers = {"Key": ABUSEIPDB_KEY, "Accept": "application/json"}
@@ -361,6 +338,7 @@ def search_abuseipdb(ip):
     except Exception as e:
         return {"source": "abuseipdb", "error": str(e)}
 
+# ===== OFDATA =====
 def search_ofdata(query, search_type):
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "Тип не поддерживается"}
@@ -378,6 +356,7 @@ def search_ofdata(query, search_type):
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
+# ===== SNUSBASE =====
 def search_snusbase(query, search_type):
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Тип не поддерживается"}
@@ -394,22 +373,42 @@ def search_snusbase(query, search_type):
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
-# CERERA (ОТКЛЮЧЕН)
-# def search_cerera(query, search_type):
-#     valid_types = ["phone", "fio", "email", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]
-#     if search_type not in valid_types:
-#         return {"source": "cerera", "error": "Тип не поддерживается"}
-#     try:
-#         params = {"token": CERERA_TOKEN, "type": search_type, "q": query}
-#         r = requests.get(CERERA_URL, params=params, timeout=30)
-#         if r.status_code == 200:
-#             data = r.json()
-#             if data.get("status") == "success":
-#                 return {"source": "cerera", "data": data.get("data"), "balance": data.get("remaining_balance")}
-#             return {"source": "cerera", "error": data.get("error", "Неизвестная ошибка")}
-#         return {"source": "cerera", "error": f"HTTP {r.status_code}"}
-#     except Exception as e:
-#         return {"source": "cerera", "error": str(e)}
+# ===== FUNSTAT (БЕСПЛАТНО — ТОЛЬКО ПО ID) =====
+def search_funstat(query, search_type):
+    if search_type not in ["telegram", "telegram_id"]:
+        return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram ID"}
+    
+    if not query.isdigit():
+        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
+    
+    try:
+        client = FunstatClient(FUNSTAT_TOKEN)
+        stats = client.stats_min(int(query))
+        
+        if stats.success:
+            data = stats.data
+            return {
+                "source": "funstat",
+                "data": {
+                    "id": data.id,
+                    "first_name": data.first_name,
+                    "last_name": data.last_name,
+                    "is_bot": data.is_bot,
+                    "is_active": data.is_active,
+                    "first_msg_date": data.first_msg_date,
+                    "last_msg_date": data.last_msg_date,
+                    "total_msg_count": data.total_msg_count,
+                    "msg_in_groups_count": data.msg_in_groups_count,
+                    "adm_in_groups": data.adm_in_groups,
+                    "total_groups": data.total_groups,
+                    "usernames_count": data.usernames_count,
+                    "names_count": data.names_count
+                }
+            }
+        else:
+            return {"source": "funstat", "error": "Пользователь не найден"}
+    except Exception as e:
+        return {"source": "funstat", "error": str(e)}
 
 # ==================== ГЛАВНЫЙ ЭНДПОИНТ ПОИСКА ====================
 @app.route('/search', methods=['POST'])
@@ -438,11 +437,12 @@ def search():
         "sources": []
     }
     
-    # ===== NYX (ЗАКОММЕНТИРОВАН) =====
-    # try:
-    #     result["sources"].append(search_nyx(query))
-    # except Exception as e:
-    #     result["sources"].append({"source": "nyx", "error": str(e)})
+    # ===== WHITE SEARCH =====
+    if search_type in ["phone", "email", "fio", "telegram", "telegram_id", "telegram_username", "vk", "ip", "snils", "inn", "passport"]:
+        try:
+            result["sources"].append(search_white_search(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "white_search", "error": str(e)})
     
     # ===== INFINITY =====
     if search_type in ["phone", "email", "fio"]:
@@ -465,7 +465,7 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "jitler_phone", "error": str(e)})
     
-    # ===== INTELX ПАРСЕР =====
+    # ===== INTELX =====
     if search_type == "phone":
         try:
             result["sources"].append(search_intelx_phone(query))
@@ -507,12 +507,12 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "snusbase", "error": str(e)})
     
-    # ===== CERERA (ОТКЛЮЧЕН) =====
-    # if search_type in ["phone", "email", "fio", "vk", "inn", "snils", "passport", "auto", "vin", "ip"]:
-    #     try:
-    #         result["sources"].append(search_cerera(query, search_type))
-    #     except Exception as e:
-    #         result["sources"].append({"source": "cerera", "error": str(e)})
+    # ===== FUNSTAT (БЕСПЛАТНО — ТОЛЬКО ПО ID) =====
+    if search_type in ["telegram", "telegram_id"] and query.isdigit():
+        try:
+            result["sources"].append(search_funstat(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "funstat", "error": str(e)})
     
     return jsonify(result)
 
@@ -546,26 +546,23 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "12.1",
-        "description": "OSINT-агрегатор с Infinity, Jitler, IntelX, BigBase и другими",
+        "version": "13.0",
+        "description": "OSINT-агрегатор с White Search, Infinity, Jitler, IntelX, BigBase, Funstat",
         "author": "@kmyfg",
         "sources": [
+            "White Search (ОСНОВНОЙ)",
             "Infinity",
             "Jitler (Telegram Sherlock)",
             "Jitler (Phone)",
             "IntelX (saverudata)",
             "BigBase (с скрытием логина/токена)",
-            "AnyScan",
             "VK",
             "AbuseIPDB",
             "OFDATA",
-            "Snusbase"
+            "Snusbase",
+            "Funstat (Telegram ID, бесплатно)"
         ],
-        "disabled": [
-            "NYX (закомментирован)",
-            "Cerera (отключён)"
-        ],
-        "bigbase": "логин и токен скрыты"
+        "funstat_note": "Только поиск по числовому ID, бесплатно"
     })
 
 if __name__ == '__main__':
