@@ -18,6 +18,22 @@ MASTER_KEY = "deeptrek_fjnrndhfrb2947472992gdvsbdh"
 
 # ==================== ВСЕ КЛЮЧИ ====================
 
+# BIGBASE (ОСНОВНОЙ ДЛЯ АВТО!)
+BIGBASE_KEY = "G1MFiznW5I7JJ-O4lwCg29nx2v0Xn6DE"
+BIGBASE_URL = "https://bigbase.top/api/search"
+
+# WHITE SEARCH
+WHITE_SEARCH_KEY = "WS-PUBLIC-9X7K-2M4P"
+WHITE_SEARCH_URL = "https://api.whitesearch.workers.dev/api"
+
+# INFINITY
+INFINITY_TOKEN = "Bjm928HUcvsw923ZMBX19gd110FWSZgd"
+INFINITY_URL = "https://infinity-search.fun/find.php"
+
+# JITLER
+JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
+JITLER_URL = "https://api.jitler.top"
+
 # VK
 VK_TOKEN = "0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c"
 VK_API = "https://api.vk.com/method/users.get"
@@ -26,13 +42,13 @@ VK_API = "https://api.vk.com/method/users.get"
 SNUSBASE_KEY = "sbmeovhou6ecsn9fd9wcwnwwvsvwnc"
 SNUSBASE_URL = "https://api.snusbase.com/data/search"
 
-# PROXYCHECK
-PROXYCHECK_KEY = "9fcd3e6622f96a780f0908ce414bb16360d3779d8253f484f319e02cc5c25065"
-PROXYCHECK_URL = "https://proxycheck.io/v2/"
-
 # ABUSEIPDB
 ABUSEIPDB_KEY = "58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581"
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
+
+# PROXYCHECK
+PROXYCHECK_KEY = "9fcd3e6622f96a780f0908ce414bb16360d3779d8253f484f319e02cc5c25065"
+PROXYCHECK_URL = "https://proxycheck.io/v2/"
 
 # HUDSON ROCK
 HUDSON_IP_URL = "https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-ip"
@@ -42,42 +58,23 @@ HUDSON_EMAIL_URL = "https://cavalier.hudsonrock.com/api/json/v2/osint-tools/sear
 # PROXYNOVA
 PROXYNOVA_URL = "https://api.proxynova.com/comb"
 
-# WHOIS
-WHOIS_URL = "https://www.whois.com/whois"
-
 # IP2LOCATION
 IP2LOCATION_KEY = "965108E0429BB3E9329066D8D015564C"
 IP2LOCATION_URL = "https://api.ip2location.io"
 
-# BIGBASE
-BIGBASE_KEY = "8JsPp38dXVdQI5OAXxQlwgQRNvhcDD2Q"
-BIGBASE_URL = "https://bigbase.top/api/search"
-
-# JITLER
-JITLER_TOKEN = "kcWgDpRlesD30v6SvqeLOejO"
-JITLER_URL = "https://api.jitler.top"
-
-# INFINITY
-INFINITY_TOKEN = "Bjm928HUcvsw923ZMBX19gd110FWSZgd"
-INFINITY_URL = "https://infinity-search.fun/find.php"
-
-# WHITE SEARCH
-WHITE_SEARCH_KEY = "WS-PUBLIC-9X7K-2M4P"
-WHITE_SEARCH_URL = "https://api.whitesearch.workers.dev/api"
-
-# FUNSTAT
-FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
-
 # OFDATA
 OFDATA_KEY = "KBnpz1CHKNngFXxK"
 OFDATA_URL = "https://api.ofdata.ru/v2/search"
+
+# FUNSTAT
+FUNSTAT_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ"
 
 # SMSC
 SMSC_LOGIN = "kirahacker333"
 SMSC_PASSWORD = "Zangar5050"
 SMSC_URL = "https://smsc.ru/sys/info.php"
 
-# ==================== ФУНКЦИЯ СКРЫТИЯ ====================
+# ==================== ФУНКЦИЯ СКРЫТИЯ BIGBASE ====================
 def sanitize_bigbase(data):
     if isinstance(data, dict):
         for key, value in list(data.items()):
@@ -108,19 +105,18 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
     if not query:
         return "unknown", None
     
-    # ГРЗ (госномер) — СНАЧАЛА, ЧТОБЫ НЕ ПЕРЕПУТАТЬ С ДРУГИМИ ТИПАМИ
-    # Форматы: А999АА99, А999АА199, АА999АА99 и т.д.
+    # ГРЗ — ПЕРВЫМ ДЕЛОМ!
     auto_clean = re.sub(r'\s+', '', query.upper())
     auto_patterns = [
         r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',
         r'^[АВЕКМНОРСТУХ]{2}\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',
-        r'^[A-Z]\d{3}[A-Z]{2}\d{2,3}$',  # Латиница для грузин/армян
+        r'^[A-Z]\d{3}[A-Z]{2}\d{2,3}$',
     ]
     for pattern in auto_patterns:
         if re.match(pattern, auto_clean):
             return "auto", auto_clean
     
-    # VIN (17 символов, буквы+цифры, без I/O/Q)
+    # VIN
     vin_clean = re.sub(r'\s+', '', query.upper())
     if re.match(r'^[A-HJ-NPR-Z0-9]{17}$', vin_clean):
         return "vin", vin_clean
@@ -166,6 +162,37 @@ def check_api_key():
 
 # ==================== ПОИСКОВЫЕ ФУНКЦИИ ====================
 
+# ===== BIGBASE (ИСПРАВЛЕННЫЙ — БЕЗ TYPE!) =====
+def search_bigbase(query, search_type):
+    try:
+        headers = {
+            "Authorization": BIGBASE_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        # ПРАВИЛЬНЫЙ ЗАПРОС — БЕЗ TYPE!
+        data = {
+            "search": query,
+            "page": 0
+        }
+        
+        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
+        
+        if r.status_code == 200:
+            result = r.json()
+            result = sanitize_bigbase(result)
+            
+            # Если records есть, но count_result = 0 — исправляем
+            if result.get("records") and result.get("count_result", 0) == 0:
+                result["count_result"] = len(result["records"])
+            
+            return {"source": "bigbase", "data": result}
+        else:
+            return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
+            
+    except Exception as e:
+        return {"source": "bigbase", "error": str(e)}
+
 # ===== WHITE SEARCH =====
 def search_white_search(query, search_type):
     type_map = {
@@ -185,14 +212,13 @@ def search_white_search(query, search_type):
     }
     
     if search_type not in type_map:
-        return {"source": "white_search", "error": "Тип не поддерживается"}
+        return {"source": "white_search", "error": f"Тип {search_type} не поддерживается"}
     
     try:
         endpoint = type_map[search_type]
         url = f"{WHITE_SEARCH_URL}{endpoint}"
         headers = {"X-API-Key": WHITE_SEARCH_KEY}
         
-        params = {}
         if search_type in ["phone", "email", "fio", "ip", "snils", "inn", "passport"]:
             params = {search_type: query}
         elif search_type in ["telegram", "telegram_id", "telegram_username"]:
@@ -203,6 +229,8 @@ def search_white_search(query, search_type):
             params = {"grz": query}
         elif search_type == "vin":
             params = {"vin": query}
+        else:
+            params = {"q": query}
         
         response = requests.get(url, params=params, headers=headers, timeout=30)
         
@@ -222,7 +250,8 @@ def search_white_search(query, search_type):
             return {"source": "white_search", "error": "Ничего не найдено"}
         elif response.status_code == 429:
             return {"source": "white_search", "error": "Дневной лимит исчерпан"}
-        return {"source": "white_search", "error": f"HTTP {response.status_code}"}
+        else:
+            return {"source": "white_search", "error": f"HTTP {response.status_code}"}
     except Exception as e:
         return {"source": "white_search", "error": str(e)}
 
@@ -241,32 +270,6 @@ def search_infinity(query, search_type):
         return {"source": "infinity", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "infinity", "error": str(e)}
-
-# ===== BIGBASE =====
-def search_bigbase(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email",
-        "fio": "fio",
-        "auto": "auto",
-        "inn": "inn",
-        "passport": "passport",
-        "ip": "ip",
-        "vin": "vin"
-    }
-    if search_type not in type_map:
-        return {"source": "bigbase", "error": "Тип не поддерживается"}
-    try:
-        headers = {"Authorization": BIGBASE_KEY, "Content-Type": "application/json"}
-        data = {"search": query, "type": type_map[search_type], "page": 1}
-        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
-        if r.status_code == 200:
-            result = r.json()
-            result = sanitize_bigbase(result)
-            return {"source": "bigbase", "data": result}
-        return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "bigbase", "error": str(e)}
 
 # ===== JITLER =====
 def search_jitler(query, search_type):
@@ -426,16 +429,6 @@ def search_ip2location(ip):
     except Exception as e:
         return {"source": "ip2location", "error": str(e)}
 
-# ===== WHOIS =====
-def search_whois(ip):
-    try:
-        r = requests.get(f"{WHOIS_URL}/{ip}", timeout=15)
-        if r.status_code == 200:
-            return {"source": "whois", "data": r.text[:500]}
-        return {"source": "whois", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "whois", "error": str(e)}
-
 # ===== OFDATA =====
 def search_ofdata(query, search_type):
     if search_type not in ["inn", "ogrn", "fio", "company"]:
@@ -507,26 +500,26 @@ def search():
         "sources": []
     }
     
-    # ===== WHITE SEARCH (ВКЛЮЧАЕТ ГРЗ И VIN) =====
+    # ===== BIGBASE (ПЕРВЫЙ — ОСНОВНОЙ ДЛЯ АВТО) =====
+    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip", "vin"]:
+        try:
+            result["sources"].append(search_bigbase(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "bigbase", "error": str(e)})
+    
+    # ===== WHITE SEARCH =====
     if search_type in ["phone", "email", "fio", "telegram", "telegram_id", "telegram_username", "vk", "ip", "snils", "inn", "passport", "auto", "vin"]:
         try:
             result["sources"].append(search_white_search(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "white_search", "error": str(e)})
     
-    # ===== INFINITY (ПОДДЕРЖИВАЕТ ГРЗ) =====
+    # ===== INFINITY =====
     if search_type in ["phone", "email", "fio", "auto"]:
         try:
             result["sources"].append(search_infinity(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "infinity", "error": str(e)})
-    
-    # ===== BIGBASE (ПОДДЕРЖИВАЕТ ГРЗ И VIN) =====
-    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip", "vin"]:
-        try:
-            result["sources"].append(search_bigbase(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "bigbase", "error": str(e)})
     
     # ===== JITLER =====
     if search_type in ["telegram", "telegram_id", "telegram_username"]:
@@ -606,13 +599,6 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "ip2location", "error": str(e)})
     
-    # ===== WHOIS =====
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_whois(query))
-        except Exception as e:
-            result["sources"].append({"source": "whois", "error": str(e)})
-    
     # ===== OFDATA =====
     if search_type in ["inn", "ogrn", "fio", "company"]:
         try:
@@ -659,20 +645,21 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "14.0",
+        "version": "15.0",
         "description": "OSINT-агрегатор со всеми рабочими источниками, включая ГРЗ и VIN",
         "author": "@kmyfg",
         "sources": [
+            "BigBase (ГРЗ, VIN, телефон, email, ФИО, ИНН, паспорт, IP) — ИСПРАВЛЕН!",
             "White Search (ГРЗ, VIN, телефон, email, ФИО, Telegram, VK, IP, СНИЛС, ИНН)",
             "Infinity (ГРЗ, телефон, email, ФИО)",
-            "BigBase (ГРЗ, VIN, телефон, email, ФИО, ИНН, паспорт, IP)",
-            "Jitler, IntelX, VK, Snusbase, AbuseIPDB, Proxycheck, Hudson Rock, Proxynova, IP2Location, Whois, OFDATA, Funstat, SMSC"
+            "Jitler, IntelX, VK, Snusbase, AbuseIPDB, Proxycheck, Hudson Rock, Proxynova, IP2Location, OFDATA, Funstat, SMSC"
         ],
         "total_sources": 16,
         "search_types": [
             "phone", "email", "fio", "telegram", "telegram_id", "telegram_username",
             "vk", "ip", "snils", "inn", "passport", "auto (ГРЗ)", "vin"
-        ]
+        ],
+        "bigbase_fixed": "Поиск без type, автоопределение"
     })
 
 if __name__ == '__main__':
