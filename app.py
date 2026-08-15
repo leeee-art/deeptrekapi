@@ -74,13 +74,31 @@ SMSC_LOGIN = os.environ.get('SMSC_LOGIN', 'kirahacker333')
 SMSC_PASSWORD = os.environ.get('SMSC_PASSWORD', 'Zangar5050')
 SMSC_URL = os.environ.get('SMSC_URL', 'https://smsc.ru/sys/info.php')
 
-# ==================== ANYAPI (ИЗ .env) ====================
+# ANYAPI
 ANYAPI_KEY = os.environ.get('ANYAPI_KEY', 'sk-wlpObrPCnFwhEciP7KljEQ')
 ANYAPI_URL = os.environ.get('ANYAPI_URL', 'https://api.anyapi.ai/v1')
 
-# ==================== GITHUB (ИЗ .env) ====================
+# GITHUB
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 GITHUB_API_URL = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
+
+# ==================== ХРАНИЛИЩЕ ИСТОРИИ (30 СООБЩЕНИЙ) ====================
+user_history = {}
+MAX_HISTORY = 30
+
+def get_history(user_id):
+    if user_id not in user_history:
+        user_history[user_id] = []
+    return user_history[user_id]
+
+def add_to_history(user_id, role, content):
+    history = get_history(user_id)
+    history.append({"role": role, "content": content})
+    if len(history) > MAX_HISTORY:
+        history.pop(0)
+
+def clear_history(user_id):
+    user_history[user_id] = []
 
 # ==================== ФУНКЦИЯ СКРЫТИЯ ====================
 def sanitize_bigbase(data):
@@ -108,7 +126,7 @@ def sanitize_bigbase(data):
     return data
 
 # ==================== ANYAPI ====================
-def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, temperature=0.7):
+def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, temperature=0.7, user_id=None):
     if not ANYAPI_KEY:
         return "Ошибка: ANYAPI_KEY не настроен"
     
@@ -117,12 +135,15 @@ def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, t
         "Content-Type": "application/json"
     }
     
+    messages = []
+    if user_id:
+        messages = get_history(user_id)
+    
+    messages.append({"role": "user", "content": prompt})
+    
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": "Ты — полезный и точный ассистент."},
-            {"role": "user", "content": prompt}
-        ],
+        "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature
     }
@@ -131,7 +152,11 @@ def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, t
         r = requests.post(f"{ANYAPI_URL}/chat/completions", headers=headers, json=payload, timeout=60)
         if r.status_code == 200:
             data = r.json()
-            return data.get('choices', [{}])[0].get('message', {}).get('content', '')
+            response = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if user_id:
+                add_to_history(user_id, "user", prompt)
+                add_to_history(user_id, "assistant", response)
+            return response
         return f"Ошибка {r.status_code}: {r.text[:200]}"
     except Exception as e:
         return f"Ошибка: {e}"
@@ -741,7 +766,7 @@ def search():
     return jsonify(result)
 
 # ============================================
-# AI ЧАТ (ANYAPI)
+# AI ЧАТ (С ИСТОРИЕЙ 30 СООБЩЕНИЙ)
 # ============================================
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -756,15 +781,41 @@ def chat():
     if not prompt:
         return jsonify({"error": "Пустой запрос"}), 400
     
+    user_id = data.get('user_id', 'default_user')
     model = data.get('model', 'google/gemma-4-26b-a4b-it:free')
     
-    response = ask_anyapi(prompt, model)
+    response = ask_anyapi(prompt, model, user_id=user_id)
+    
+    history = get_history(user_id)
     
     return jsonify({
         "prompt": prompt,
         "model": model,
         "response": response,
+        "history_length": len(history),
+        "max_history": MAX_HISTORY,
         "timestamp": datetime.now().isoformat()
+    })
+
+# ============================================
+# ОЧИСТКА ИСТОРИИ
+# ============================================
+@app.route('/chat/clear', methods=['POST'])
+def clear_chat():
+    if not check_api_key():
+        return jsonify({"error": "Неверный API-ключ"}), 403
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Нет данных"}), 400
+    
+    user_id = data.get('user_id', 'default_user')
+    
+    clear_history(user_id)
+    
+    return jsonify({
+        "status": "ok",
+        "message": f"История чата для {user_id} очищена"
     })
 
 # ============================================
@@ -843,12 +894,13 @@ def index():
             "Funstat (Telegram ID)",
             "SMSC",
             "GitHub (username, email)",
-            "AnyAPI (AI чат)"
+            "AnyAPI (AI чат с историей 30 сообщений)"
         ],
         "total_sources": 17,
         "endpoints": {
             "/search": "POST - основной поиск",
-            "/chat": "POST - AI чат (AnyAPI)",
+            "/chat": "POST - AI чат (AnyAPI, история 30 сообщений)",
+            "/chat/clear": "POST - очистка истории чата",
             "/github/user/<username>": "GET - информация о пользователе GitHub",
             "/github/email/<email>": "GET - поиск email в GitHub",
             "/tempmail/generate": "GET - генерация временной почты",
