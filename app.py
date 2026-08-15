@@ -125,6 +125,118 @@ def sanitize_bigbase(data):
                         sanitize_bigbase(item)
     return data
 
+# ==================== КРАСИВЫЙ ВЫВОД BIGBASE ====================
+def format_bigbase_result(data):
+    """Форматирует результат BigBase для красивого вывода"""
+    if not data:
+        return "❌ Данных нет"
+    
+    if data.get("error"):
+        return f"❌ Ошибка: {data['error']}"
+    
+    result = []
+    result.append("=" * 60)
+    result.append("📊 BIGBASE — РЕЗУЛЬТАТЫ ПОИСКА")
+    result.append("=" * 60)
+    
+    # Статистика
+    count = data.get("count_result", 0)
+    pages = data.get("total_pages", 0)
+    time_taken = data.get("time", 0)
+    
+    result.append(f"📌 Найдено: {count} записей")
+    result.append(f"📌 Страниц: {pages}")
+    result.append(f"⏱️ Время: {time_taken}с")
+    
+    # Информация о пользователе
+    user = data.get("user", {})
+    if user:
+        result.append(f"\n👤 Аккаунт:")
+        result.append(f"  Логин: {user.get('login', '***')}")
+        result.append(f"  Баланс: {user.get('balance', 0)}")
+        result.append(f"  Запросов: {user.get('queries', 0)}")
+        result.append(f"  Подписка: {user.get('subscribe', 0)}")
+        result.append(f"  Запросов по подписке: {user.get('subscribe_queries', 0)}")
+    
+    # Записи
+    records = data.get("records", [])
+    if not records:
+        result.append("\n❌ Записей не найдено")
+        return "\n".join(result)
+    
+    result.append(f"\n📦 НАЙДЕННЫЕ ЗАПИСИ ({len(records)}):")
+    result.append("-" * 60)
+    
+    for idx, record in enumerate(records[:20], 1):
+        result.append(f"\n─── ЗАПИСЬ #{idx} ───")
+        
+        # ID записи
+        record_id = record.get("record_id", "N/A")
+        result.append(f"  🆔 ID: {record_id}")
+        
+        # Базовая информация
+        base_info = record.get("base_info", {})
+        if base_info:
+            name = base_info.get("name", "")
+            description = base_info.get("description", "")
+            if name:
+                result.append(f"  📚 База: {name}")
+            if description:
+                result.append(f"  📝 Описание: {description[:100]}...")
+        
+        # Данные записи (base_record)
+        base_record = record.get("base_record", [])
+        if base_record:
+            result.append(f"\n  📋 ДАННЫЕ:")
+            for field in base_record:
+                if isinstance(field, list) and len(field) >= 2:
+                    key = field[0]
+                    value = field[1]
+                    if value and str(value).strip():
+                        if isinstance(value, list):
+                            if len(value) > 0 and isinstance(value[0], list):
+                                for sub in value[:3]:
+                                    if isinstance(sub, list):
+                                        parts = []
+                                        for item in sub:
+                                            if isinstance(item, list) and len(item) >= 2:
+                                                parts.append(f"{item[0]}: {item[1]}")
+                                        if parts:
+                                            result.append(f"    • {', '.join(parts)}")
+                            else:
+                                result.append(f"    • {', '.join([str(x) for x in value[:5]])}")
+                        elif isinstance(value, dict):
+                            result.append(f"    • {json.dumps(value, ensure_ascii=False)[:100]}...")
+                        else:
+                            result.append(f"    • {key}: {value}")
+        
+        # Связи (connections)
+        connections = record.get("connections", [])
+        if connections:
+            result.append(f"\n  🔗 СВЯЗИ ({len(connections)}):")
+            for conn in connections[:5]:
+                conn_type = conn.get("type", "unknown")
+                conn_title = conn.get("title", "")
+                if conn_title:
+                    result.append(f"    • [{conn_type}] {conn_title}")
+                else:
+                    for key, value in conn.items():
+                        if key not in ["type", "id", "title", "links"] and value:
+                            if isinstance(value, list) and value:
+                                first = value[0]
+                                if isinstance(first, dict):
+                                    val_str = first.get("value", first.get("name", str(first)))
+                                    result.append(f"    • {key}: {val_str}")
+                                else:
+                                    result.append(f"    • {key}: {value}")
+                            break
+    
+    if len(records) > 20:
+        result.append(f"\n... и ещё {len(records) - 20} записей")
+    
+    result.append("\n" + "=" * 60)
+    return "\n".join(result)
+
 # ==================== ANYAPI ====================
 def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, temperature=0.7, user_id=None):
     if not ANYAPI_KEY:
@@ -609,7 +721,7 @@ def search_smsc():
         return {"source": "smsc", "error": str(e)}
 
 # ============================================
-# ГЛАВНЫЙ ЭНДПОИНТ ПОИСКА
+# ГЛАВНЫЙ ЭНДПОИНТ ПОИСКА (С КРАСИВЫМ ВЫВОДОМ BIGBASE)
 # ============================================
 @app.route('/search', methods=['POST'])
 def search():
@@ -637,10 +749,14 @@ def search():
         "sources": []
     }
     
-    # ===== BIGBASE =====
+    # ===== BIGBASE (С КРАСИВЫМ ВЫВОДОМ) =====
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip", "vin", "ogrn", "company"]:
         try:
-            result["sources"].append(search_bigbase(query, search_type))
+            bigbase_raw = search_bigbase(query, search_type)
+            # Добавляем красивый форматированный вывод
+            if bigbase_raw.get("data"):
+                bigbase_raw["formatted"] = format_bigbase_result(bigbase_raw["data"])
+            result["sources"].append(bigbase_raw)
         except Exception as e:
             result["sources"].append({"source": "bigbase", "error": str(e)})
     
@@ -878,7 +994,7 @@ def index():
         "description": "OSINT-агрегатор с BigBase, White Search, Infinity, Jitler, IntelX, VK, Snusbase, AbuseIPDB, Proxycheck, Hudson Rock, Proxynova, IP2Location, OFDATA, Funstat, SMSC, GitHub, AnyAPI",
         "author": "@kmyfg",
         "sources": [
-            "BigBase (ГРЗ, VIN, телефон, email, ФИО, ИНН, паспорт, IP, ОГРН)",
+            "BigBase (ГРЗ, VIN, телефон, email, ФИО, ИНН, паспорт, IP, ОГРН) — с красивым выводом!",
             "White Search (ГРЗ, VIN, телефон, email, ФИО, Telegram, VK, IP, СНИЛС, ИНН)",
             "Infinity (ГРЗ, телефон, email, ФИО)",
             "Jitler (Telegram, телефон)",
@@ -898,7 +1014,7 @@ def index():
         ],
         "total_sources": 17,
         "endpoints": {
-            "/search": "POST - основной поиск",
+            "/search": "POST - основной поиск (BigBase с красивым выводом)",
             "/chat": "POST - AI чат (AnyAPI, история 30 сообщений)",
             "/chat/clear": "POST - очистка истории чата",
             "/github/user/<username>": "GET - информация о пользователе GitHub",
