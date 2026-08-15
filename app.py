@@ -721,7 +721,7 @@ def search_smsc():
         return {"source": "smsc", "error": str(e)}
 
 # ============================================
-# ГЛАВНЫЙ ЭНДПОИНТ ПОИСКА (С КРАСИВЫМ ВЫВОДОМ BIGBASE)
+# ГЛАВНЫЙ ЭНДПОИНТ ПОИСКА
 # ============================================
 @app.route('/search', methods=['POST'])
 def search():
@@ -753,9 +753,11 @@ def search():
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip", "vin", "ogrn", "company"]:
         try:
             bigbase_raw = search_bigbase(query, search_type)
-            # Добавляем красивый форматированный вывод
             if bigbase_raw.get("data"):
+                # Формируем красивый текстовый отчёт
                 bigbase_raw["formatted"] = format_bigbase_result(bigbase_raw["data"])
+                # Убираем сырой data, чтобы не дублировать
+                del bigbase_raw["data"]
             result["sources"].append(bigbase_raw)
         except Exception as e:
             result["sources"].append({"source": "bigbase", "error": str(e)})
