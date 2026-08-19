@@ -14,92 +14,117 @@ from funstat_api import FunstatClient
 app = Flask(__name__)
 CORS(app)
 
-# ==================== КОНФИГ (ИЗ .env) ====================
-
+# ==================== КОНФИГ ====================
 MASTER_KEY = os.environ.get('MASTER_KEY', 'deeptrek_fjnrndhfrb2947472992gdvsbdh')
 
-# ==================== BIGBASE (2 КЛЮЧА) ====================
-BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'yhWCFGkla7-lT4ldeiIkVgFVYtHauETM')
-BIGBASE_KEY_2 = os.environ.get('BIGBASE_KEY_2', 'G1MFiznW5I7JJ-O4lwCg29nx2v0Xn6DE')
+# ==================== ВСЕ РАБОЧИЕ КЛЮЧИ ====================
+
+# BIGBASE (3 КЛЮЧА)
+BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'yhIkVgFWlT4ldeiauETMCFGkla7-VYtH')
+BIGBASE_KEY_2 = os.environ.get('BIGBASE_KEY_2', 'IWTtHHz1lg_5XbYNHBWjiAtPiRrzpESM')
+BIGBASE_KEY_3 = os.environ.get('BIGBASE_KEY_3', 'M9djfI8W3l-ozvCNsxPuLGONicsvgvnM')
 BIGBASE_URL = os.environ.get('BIGBASE_URL', 'https://bigbase.top/api/search')
 
-# ==================== INFINITY ====================
-INFINITY_TOKEN = os.environ.get('INFINITY_TOKEN', 'QoNm98UeMLIqNjZ198snm98AdGvhqA88')
+# DEPSEARCH
+DEPSEARCH_TOKEN = os.environ.get('DEPSEARCH_TOKEN', 'OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z')
+DEPSEARCH_URL = os.environ.get('DEPSEARCH_URL', 'https://api.depsearch.sbs/quest')
+
+# INFINITY (2 КЛЮЧА)
+INFINITY_TOKEN_1 = os.environ.get('INFINITY_TOKEN_1', 'Bjm928HUcvsw923ZMBX19gd110FWSZgd')
+INFINITY_TOKEN_2 = os.environ.get('INFINITY_TOKEN_2', 'QoNm98UeMLIqNjZ198snm98AdGvhqA88')
 INFINITY_URL = os.environ.get('INFINITY_URL', 'https://infinity-search.fun/find.php')
 
-# ==================== WHITE SEARCH ====================
-WHITE_SEARCH_KEY = os.environ.get('WHITE_SEARCH_KEY', 'WS-PUBLIC-9X7K-2M4P')
-WHITE_SEARCH_URL = os.environ.get('WHITE_SEARCH_URL', 'https://api.whitesearch.workers.dev/api')
+# WHITE SEARCH
+WHITESEARCH_KEY = os.environ.get('WHITESEARCH_KEY', 'WS-PUBLIC-9X7K-2M4P')
+WHITESEARCH_URL = os.environ.get('WHITESEARCH_URL', 'https://api.whitesearch.workers.dev/api')
 
-# ==================== JITLER ====================
-JITLER_TOKEN = os.environ.get('JITLER_TOKEN', 'kcWgDpRlesD30v6SvqeLOejO')
-JITLER_URL = os.environ.get('JITLER_URL', 'https://api.jitler.top')
+# JITLER
+JITLER_TOKEN = os.environ.get('JITLER_TOKEN', '7M8wfVQlszWnbaaINN2ig7iA')
+JITLER_URL = os.environ.get('JITLER_URL', 'https://api.jitler.top/search')
 
-# ==================== VK ====================
-VK_TOKEN = os.environ.get('VK_TOKEN', '0af157510af157510af15751aa0a89e69600af10af157516a0bc15996e74fe2b440998c')
-VK_API = os.environ.get('VK_API', 'https://api.vk.com/method/users.get')
+# LEAKCHECK
+LEAKCHECK_KEY = os.environ.get('LEAKCHECK_KEY', '49535f49545f5245414c4c595f4150495f4b4559')
+LEAKCHECK_URL = os.environ.get('LEAKCHECK_URL', 'https://leakcheck.net/api/public')
 
-# ==================== SNUSBASE ====================
-SNUSBASE_KEY = os.environ.get('SNUSBASE_KEY', 'sbmeovhou6ecsn9fd9wcwnwwvsvwnc')
-SNUSBASE_URL = os.environ.get('SNUSBASE_URL', 'https://api.snusbase.com/data/search')
+# SNUSBASE
+SNUSBASE_KEY = os.environ.get('SNUSBASE_KEY', 'sb5029dec66mht55m78fx8bsw6tm8a')
+SNUSBASE_URL = os.environ.get('SNUSBASE_URL', 'https://api.snusbase.com/v3/search')
 
-# ==================== ABUSEIPDB ====================
-ABUSEIPDB_KEY = os.environ.get('ABUSEIPDB_KEY', '58878ed65228db88eddfda4983bce5d19d425ddf81f427857b3f59f11aecc34f127862a1cc7d4581')
-ABUSEIPDB_URL = os.environ.get('ABUSEIPDB_URL', 'https://api.abuseipdb.com/api/v2/check')
+# LEAKOSINT
+LEAKOSINT_TOKEN = os.environ.get('LEAKOSINT_TOKEN', '8602726148:KHqZhmJC')
+LEAKOSINT_URL = os.environ.get('LEAKOSINT_URL', 'https://leakosintapi.com/')
 
-# ==================== PROXYCHECK ====================
-PROXYCHECK_KEY = os.environ.get('PROXYCHECK_KEY', '9fcd3e6622f96a780f0908ce414bb16360d3779d8253f484f319e02cc5c25065')
-PROXYCHECK_URL = os.environ.get('PROXYCHECK_URL', 'https://proxycheck.io/v2/')
+# FUNSTAT
+FUNSTAT_TOKEN = os.environ.get('FUNSTAT_TOKEN', 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIyMDMzMDI5NDc1IiwianRpIjoiODJmMjlmNzQtYmJlMi00ZGUwLWEwZDQtN2EzMDJhMWE5MDViIiwiZXhwIjoxODAxMDA4MzM4fQ.Mba4aX85YAMcaMLfhUBzXtCoNmEujfMe-6sGBbp3kT-T2SiLM_Ho0BBAFAQ8_C6Gz06PH9mAYhfBvlLSjb4oVd1Fm_vmb8MC-wuObU3qgfGrYdGzVF3ntJHv-LdNELq-jsqvQOY3jq9meso9dUoyj5SviDQWL6cvnRQ03kpHWxA')
 
-# ==================== HUDSON ROCK ====================
-HUDSON_IP_URL = os.environ.get('HUDSON_IP_URL', 'https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-ip')
-HUDSON_USERNAME_URL = os.environ.get('HUDSON_USERNAME_URL', 'https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-username')
-HUDSON_EMAIL_URL = os.environ.get('HUDSON_EMAIL_URL', 'https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-email')
+# VERIPHONE
+VERIPHONE_KEY = os.environ.get('VERIPHONE_KEY', 'D997B34B302B4A06B3AB815312852E51')
+VERIPHONE_URL = os.environ.get('VERIPHONE_URL', 'https://api.veriphone.io/v2/verify')
 
-# ==================== PROXYNOVA ====================
-PROXYNOVA_URL = os.environ.get('PROXYNOVA_URL', 'https://api.proxynova.com/comb')
+# IPGEO
+IPGEO_KEY = os.environ.get('IPGEO_KEY', '73d99145d2e948779263360bfeb67ecc')
+IPGEO_URL = os.environ.get('IPGEO_URL', 'https://api.ipgeolocation.io/ipgeo')
 
-# ==================== IP2LOCATION ====================
-IP2LOCATION_KEY = os.environ.get('IP2LOCATION_KEY', '965108E0429BB3E9329066D8D015564C')
-IP2LOCATION_URL = os.environ.get('IP2LOCATION_URL', 'https://api.ip2location.io')
-
-# ==================== OFDATA ====================
+# OFDATA
 OFDATA_KEY = os.environ.get('OFDATA_KEY', 'KBnpz1CHKNngFXxK')
 OFDATA_URL = os.environ.get('OFDATA_URL', 'https://api.ofdata.ru/v2/search')
 
-# ==================== FUNSTAT ====================
-FUNSTAT_TOKEN = os.environ.get('FUNSTAT_TOKEN', 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI4NDkwNjcxMTE3IiwianRpIjoiYzk0MjAwNDktYTNhNi00ZjgwLTkwZjItYzAxOTllNWQ3ZjdlIiwiZXhwIjoxODExNDQwNTkzfQ.ZtAs0h5SnD-INsbBALHO9L6u7Owzb8oZeOQQdM5trWkG-5W5S2sWAzTRXVMNaZOrYXsGOekr4bARBFYVudASyC2tTx7HmJqHivn0gzdeUXvi3V-L6_YGWg87QSbfr-qEtqp2OJwolSgudgeNuMEn3AGpSM1Cb8N99oRDX5pFEiQ')
-
-# ==================== SMSC ====================
+# SMSC
 SMSC_LOGIN = os.environ.get('SMSC_LOGIN', 'kirahacker333')
 SMSC_PASSWORD = os.environ.get('SMSC_PASSWORD', 'Zangar5050')
 SMSC_URL = os.environ.get('SMSC_URL', 'https://smsc.ru/sys/info.php')
 
-# ==================== ANYAPI ====================
-ANYAPI_KEY = os.environ.get('ANYAPI_KEY', 'sk-wlpObrPCnFwhEciP7KljEQ')
-ANYAPI_URL = os.environ.get('ANYAPI_URL', 'https://api.anyapi.ai/v1')
+# ==================== ПАРСЕРЫ ====================
 
-# ==================== GITHUB ====================
-GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
-GITHUB_API_URL = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
+# INTELX
+INTELX_URL = os.environ.get('INTELX_URL', 'https://data.intelx.io/saverudata/')
 
-# ==================== NIGHTSEARCH (НОВЫЙ) ====================
-NIGHTSEARCH_KEY = os.environ.get('NIGHTSEARCH_KEY', 'sk_66beac29ce86f915b184a9ddde7aecbfc6177ab265cf5c1f579ce53219422234')
-NIGHTSEARCH_URL = os.environ.get('NIGHTSEARCH_URL', 'https://nightsearch.life/api/search')
+# GETSCAM
+GETSCAM_URL = os.environ.get('GETSCAM_URL', 'https://getscam.com')
 
-# ==================== SHODAN (НОВЫЙ) ====================
-SHODAN_KEY = os.environ.get('SHODAN_KEY', 'UJN4abrj0J8qLYvrp48bnWynNWI2wHpn')
-SHODAN_URL = os.environ.get('SHODAN_URL', 'https://api.shodan.io/shodan/host/')
+# REVIEWS SITE
+REVIEWS_URL = os.environ.get('REVIEWS_URL', 'https://xn---7-elctgilofd3b.xn--p1ai')
 
-# ==================== LEAKCHECK (НОВЫЙ) ====================
-LEAKCHECK_KEY = os.environ.get('LEAKCHECK_KEY', '49535f49545f5245414c4c595f4150495f4b4559')
-LEAKCHECK_URL = os.environ.get('LEAKCHECK_URL', 'https://leakcheck.io/api/public')
+# GITHUB
+GITHUB_URL = os.environ.get('GITHUB_URL', 'https://api.github.com/users')
 
-# ==================== VERIPHONE (НОВЫЙ) ====================
-VERIPHONE_KEY = os.environ.get('VERIPHONE_KEY', 'D997B34B302B4A06B3AB815312852E51')
-VERIPHONE_URL = os.environ.get('VERIPHONE_URL', 'https://api.veriphone.io/v2/verify')
+# INSTAGRAM
+INSTAGRAM_URL = os.environ.get('INSTAGRAM_URL', 'https://www.instagram.com')
 
-# ==================== ХРАНИЛИЩЕ ИСТОРИИ (30 СООБЩЕНИЙ) ====================
+# BINLIST
+BINLIST_URL = os.environ.get('BINLIST_URL', 'https://lookup.binlist.net')
+
+# MAC VENDORS
+MACVENDORS_URL = os.environ.get('MACVENDORS_URL', 'https://api.macvendors.com')
+
+# MINECRAFT
+MINECRAFT_URL = os.environ.get('MINECRAFT_URL', 'https://api.mojang.com/users/profiles/minecraft')
+
+# DOMAIN WHOIS
+DOMAINWHOIS_URL = os.environ.get('DOMAINWHOIS_URL', 'https://api.hackertarget.com/whois/')
+
+# DNS LOOKUP
+DNSLOOKUP_URL = os.environ.get('DNSLOOKUP_URL', 'https://api.hackertarget.com/dnslookup/')
+
+# ==================== РОТАТОРЫ ====================
+bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2, BIGBASE_KEY_3]
+bigbase_idx = 0
+infinity_tokens = [INFINITY_TOKEN_1, INFINITY_TOKEN_2]
+infinity_idx = 0
+
+def get_bigbase_key():
+    global bigbase_idx
+    key = bigbase_keys[bigbase_idx]
+    bigbase_idx = (bigbase_idx + 1) % len(bigbase_keys)
+    return key
+
+def get_infinity_token():
+    global infinity_idx
+    token = infinity_tokens[infinity_idx]
+    infinity_idx = (infinity_idx + 1) % len(infinity_tokens)
+    return token
+
+# ==================== ХРАНИЛИЩЕ ИСТОРИИ ====================
 user_history = {}
 MAX_HISTORY = 30
 
@@ -117,7 +142,7 @@ def add_to_history(user_id, role, content):
 def clear_history(user_id):
     user_history[user_id] = []
 
-# ==================== ФУНКЦИЯ СКРЫТИЯ BIGBASE ====================
+# ==================== ФУНКЦИЯ СКРЫТИЯ ====================
 def sanitize_bigbase(data):
     if isinstance(data, dict):
         for key, value in list(data.items()):
@@ -142,50 +167,50 @@ def sanitize_bigbase(data):
                         sanitize_bigbase(item)
     return data
 
-# ==================== BIGBASE (С РОТАЦИЕЙ 2 КЛЮЧЕЙ) ====================
-bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2]
-bigbase_key_index = 0
+# ==================== ПОИСКОВЫЕ ФУНКЦИИ ====================
 
 def search_bigbase(query, search_type):
-    global bigbase_key_index
+    key = get_bigbase_key()
+    try:
+        headers = {"Authorization": key, "Content-Type": "application/json"}
+        data = {"search": query, "page": 0}
+        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
+        if r.status_code == 200:
+            result = r.json()
+            if result.get("error"):
+                return {"source": "bigbase", "error": result["error"]}
+            result = sanitize_bigbase(result)
+            if result.get("records") and result.get("count_result", 0) == 0:
+                result["count_result"] = len(result["records"])
+            return {"source": "bigbase", "data": result}
+        return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "bigbase", "error": str(e)}
 
-    for attempt in range(len(bigbase_keys)):
-        key = bigbase_keys[bigbase_key_index]
-        bigbase_key_index = (bigbase_key_index + 1) % len(bigbase_keys)
+def search_depsearch(query, search_type):
+    type_map = {"phone": "phone", "email": "email", "fio": "name", "vk": "vk", "telegram": "telegram"}
+    if search_type not in type_map:
+        return {"source": "depsearch", "error": "Тип не поддерживается"}
+    try:
+        params = {"quest": query, "type": type_map[search_type], "token": DEPSEARCH_TOKEN}
+        r = requests.get(DEPSEARCH_URL, params=params, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            if "error" not in data:
+                results = data.get("results", [])
+                return {"source": "depsearch", "data": {"total": len(results), "results": results[:20]}}
+            return {"source": "depsearch", "error": data.get("error")}
+        return {"source": "depsearch", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "depsearch", "error": str(e)}
 
-        try:
-            headers = {"Authorization": key, "Content-Type": "application/json"}
-            data = {"search": query, "page": 0}
-            r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
-
-            if r.status_code == 200:
-                result = r.json()
-                if result.get("error"):
-                    if "авториз" in result.get("error", "").lower() or "token" in result.get("error", "").lower():
-                        continue
-                    return {"source": "bigbase", "error": result["error"]}
-                result = sanitize_bigbase(result)
-                if result.get("records") and result.get("count_result", 0) == 0:
-                    result["count_result"] = len(result["records"])
-                return {"source": "bigbase", "data": result}
-            else:
-                if r.status_code in [401, 403]:
-                    continue
-                return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
-        except Exception as e:
-            continue
-
-    return {"source": "bigbase", "error": "Все ключи BigBase не работают"}
-
-# ==================== INFINITY ====================
 def search_infinity(query, search_type):
+    token = get_infinity_token()
     if search_type not in ["phone", "email", "fio"]:
         return {"source": "infinity", "error": "Тип не поддерживается"}
-
     try:
-        params = {"token": INFINITY_TOKEN, search_type: query}
+        params = {"token": token, search_type: query}
         r = requests.get(INFINITY_URL, params=params, timeout=15)
-
         if r.status_code == 200:
             data = r.json()
             if data.get("results"):
@@ -194,66 +219,6 @@ def search_infinity(query, search_type):
         return {"source": "infinity", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "infinity", "error": str(e)}
-
-# ==================== NIGHTSEARCH (НОВЫЙ) ====================
-def search_nightsearch(query, search_type):
-    try:
-        headers = {"X-API-Key": NIGHTSEARCH_KEY, "Content-Type": "application/json; charset=utf-8"}
-        payload = {"query": query, "search_type": search_type}
-        r = requests.post(NIGHTSEARCH_URL, headers=headers, json=payload, timeout=30)
-        if r.status_code == 200:
-            return {"source": "nightsearch", "data": r.json()}
-        return {"source": "nightsearch", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "nightsearch", "error": str(e)}
-
-# ==================== SHODAN (НОВЫЙ) ====================
-def search_shodan(ip):
-    try:
-        r = requests.get(f"{SHODAN_URL}{ip}?key={SHODAN_KEY}", timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            return {"source": "shodan", "data": {
-                "ip": data.get("ip_str"),
-                "country": data.get("country_name"),
-                "city": data.get("city"),
-                "isp": data.get("isp"),
-                "org": data.get("org"),
-                "os": data.get("os"),
-                "ports": data.get("ports", [])[:10],
-                "hostnames": data.get("hostnames", [])
-            }}
-        return {"source": "shodan", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "shodan", "error": str(e)}
-
-# ==================== LEAKCHECK (НОВЫЙ) ====================
-def search_leakcheck(query, search_type="email"):
-    try:
-        r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=10)
-        if r.status_code == 200:
-            return {"source": "leakcheck", "data": r.json()}
-        return {"source": "leakcheck", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "leakcheck", "error": str(e)}
-
-# ==================== VERIPHONE (НОВЫЙ) ====================
-def search_veriphone(phone):
-    try:
-        r = requests.get(VERIPHONE_URL, params={"phone": phone, "key": VERIPHONE_KEY}, timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            return {"source": "veriphone", "data": {
-                "valid": data.get("phone_valid", False),
-                "country": data.get("country_name"),
-                "region": data.get("phone_region"),
-                "carrier": data.get("carrier")
-            }}
-        return {"source": "veriphone", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "veriphone", "error": str(e)}
-
-# ==================== ОСТАЛЬНЫЕ ПОИСКОВЫЕ ФУНКЦИИ ====================
 
 def search_white_search(query, search_type):
     type_map = {
@@ -275,8 +240,8 @@ def search_white_search(query, search_type):
         return {"source": "white_search", "error": f"Тип {search_type} не поддерживается"}
     try:
         endpoint = type_map[search_type]
-        url = f"{WHITE_SEARCH_URL}{endpoint}"
-        headers = {"X-API-Key": WHITE_SEARCH_KEY}
+        url = f"{WHITESEARCH_URL}{endpoint}"
+        headers = {"X-API-Key": WHITESEARCH_KEY}
         if search_type in ["phone", "email", "fio", "ip", "snils", "inn", "passport"]:
             params = {search_type: query}
         elif search_type in ["telegram", "telegram_id", "telegram_username"]:
@@ -289,9 +254,9 @@ def search_white_search(query, search_type):
             params = {"vin": query}
         else:
             params = {"q": query}
-        response = requests.get(url, params=params, headers=headers, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
+        r = requests.get(url, params=params, headers=headers, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
             if data.get("success") and data.get("data"):
                 results_data = data.get("data", [])
                 if isinstance(results_data, dict) and results_data.get("message") == "Not found":
@@ -304,49 +269,35 @@ def search_white_search(query, search_type):
                     }
                 }
             return {"source": "white_search", "error": "Ничего не найдено"}
-        elif response.status_code == 429:
+        elif r.status_code == 429:
             return {"source": "white_search", "error": "Дневной лимит исчерпан"}
-        return {"source": "white_search", "error": f"HTTP {response.status_code}"}
+        return {"source": "white_search", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "white_search", "error": str(e)}
 
 def search_jitler(query, search_type):
-    if search_type not in ["telegram", "telegram_id", "telegram_username"]:
-        return {"source": "jitler", "error": "Jitler поддерживает только поиск по Telegram"}
+    if search_type not in ["phone", "telegram", "telegram_id", "telegram_username", "vk"]:
+        return {"source": "jitler", "error": "Jitler поддерживает только phone, telegram, vk"}
+    type_map = {"phone": "number", "telegram": "sherlock", "telegram_id": "sherlock", "telegram_username": "sherlock", "vk": "vks"}
     try:
         headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
-        payload = {"type": "sherlock", "query": query, "page": 1}
-        r = requests.post(f"{JITLER_URL}/search", headers=headers, json=payload, timeout=30)
+        payload = {"type": type_map[search_type], "query": query, "page": 1}
+        r = requests.post(JITLER_URL, headers=headers, json=payload, timeout=30)
         if r.status_code == 200:
             data = r.json()
-            response = data.get("response", {})
-            return {"source": "jitler", "data": {"telegram": response.get("telegram", []), "phonebooks": response.get("phonebooks", []), "profiles": response.get("profiles", {}), "raw": response.get("raw", ""), "counts": response.get("counts", {})}}
+            return {"source": "jitler", "data": data.get("response", {})}
         return {"source": "jitler", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
-def search_jitler_phone(query):
+def search_leakcheck(query, search_type="email"):
     try:
-        headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
-        payload = {"type": "number", "query": query, "page": 1}
-        r = requests.post(f"{JITLER_URL}/search", headers=headers, json=payload, timeout=30)
+        r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=10)
         if r.status_code == 200:
-            return {"source": "jitler_phone", "data": r.json().get("response", {})}
-        return {"source": "jitler_phone", "error": f"HTTP {r.status_code}"}
+            return {"source": "leakcheck", "data": r.json()}
+        return {"source": "leakcheck", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "jitler_phone", "error": str(e)}
-
-def search_vk(query):
-    try:
-        params = {"access_token": VK_TOKEN, "v": "5.131", "user_ids": query, "fields": "first_name,last_name,status,sex,country"}
-        r = requests.get(VK_API, params=params, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            if "response" in data and data["response"]:
-                return {"source": "vk", "data": data["response"]}
-        return {"source": "vk", "error": "Пользователь не найден"}
-    except Exception as e:
-        return {"source": "vk", "error": str(e)}
+        return {"source": "leakcheck", "error": str(e)}
 
 def search_snusbase(query, search_type):
     if search_type not in ["email", "fio", "ip"]:
@@ -364,71 +315,71 @@ def search_snusbase(query, search_type):
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
-def search_abuseipdb(ip):
+def search_leakosint(query, limit=100):
     try:
-        headers = {"Key": ABUSEIPDB_KEY, "Accept": "application/json"}
-        params = {"ipAddress": ip, "maxAgeInDays": 90}
-        r = requests.get(ABUSEIPDB_URL, headers=headers, params=params, timeout=10)
+        payload = {"token": LEAKOSINT_TOKEN, "request": query, "limit": limit, "lang": "ru"}
+        r = requests.post(LEAKOSINT_URL, json=payload, timeout=30)
         if r.status_code == 200:
-            data = r.json().get("data", {})
-            return {"source": "abuseipdb", "data": {"ip": data.get("ipAddress"), "country": data.get("countryCode"), "isp": data.get("isp"), "confidence": data.get("abuseConfidenceScore"), "reports": data.get("totalReports")}}
-        return {"source": "abuseipdb", "error": f"HTTP {r.status_code}"}
+            data = r.json()
+            if "Error code" in data:
+                return {"source": "leakosint", "error": data.get("Error code")}
+            return {"source": "leakosint", "data": data}
+        return {"source": "leakosint", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "abuseipdb", "error": str(e)}
+        return {"source": "leakosint", "error": str(e)}
 
-def search_proxycheck(ip):
+def search_funstat(query, search_type):
+    if search_type not in ["telegram", "telegram_id"]:
+        return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram ID"}
+    if not query.isdigit():
+        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
     try:
-        r = requests.get(f"{PROXYCHECK_URL}{ip}", params={"key": PROXYCHECK_KEY}, timeout=10)
-        if r.status_code == 200:
-            return {"source": "proxycheck", "data": r.json()}
-        return {"source": "proxycheck", "error": f"HTTP {r.status_code}"}
+        client = FunstatClient(FUNSTAT_TOKEN)
+        stats = client.stats_min(int(query))
+        if stats.success:
+            data = stats.data
+            return {"source": "funstat", "data": {
+                "id": data.id,
+                "first_name": data.first_name,
+                "last_name": data.last_name,
+                "is_bot": data.is_bot,
+                "is_active": data.is_active,
+                "first_msg_date": data.first_msg_date,
+                "last_msg_date": data.last_msg_date,
+                "total_msg_count": data.total_msg_count,
+                "msg_in_groups_count": data.msg_in_groups_count,
+                "adm_in_groups": data.adm_in_groups,
+                "total_groups": data.total_groups,
+                "usernames_count": data.usernames_count,
+                "names_count": data.names_count
+            }}
+        return {"source": "funstat", "error": "Пользователь не найден"}
     except Exception as e:
-        return {"source": "proxycheck", "error": str(e)}
+        return {"source": "funstat", "error": str(e)}
 
-def search_hudson_ip(ip):
+def search_veriphone(phone):
     try:
-        r = requests.get(HUDSON_IP_URL, params={"ip": ip}, timeout=15)
+        r = requests.get(VERIPHONE_URL, params={"phone": phone, "key": VERIPHONE_KEY}, timeout=10)
         if r.status_code == 200:
-            return {"source": "hudson_ip", "data": r.json()}
-        return {"source": "hudson_ip", "error": f"HTTP {r.status_code}"}
+            data = r.json()
+            return {"source": "veriphone", "data": {
+                "valid": data.get("phone_valid", False),
+                "country": data.get("country_name"),
+                "region": data.get("phone_region"),
+                "carrier": data.get("carrier")
+            }}
+        return {"source": "veriphone", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "hudson_ip", "error": str(e)}
+        return {"source": "veriphone", "error": str(e)}
 
-def search_hudson_username(username):
+def search_ipgeo(ip):
     try:
-        r = requests.get(HUDSON_USERNAME_URL, params={"username": username}, timeout=15)
+        r = requests.get(IPGEO_URL, params={"apiKey": IPGEO_KEY, "ip": ip}, timeout=10)
         if r.status_code == 200:
-            return {"source": "hudson_username", "data": r.json()}
-        return {"source": "hudson_username", "error": f"HTTP {r.status_code}"}
+            return {"source": "ipgeo", "data": r.json()}
+        return {"source": "ipgeo", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "hudson_username", "error": str(e)}
-
-def search_hudson_email(email):
-    try:
-        r = requests.get(HUDSON_EMAIL_URL, params={"email": email}, timeout=15)
-        if r.status_code == 200:
-            return {"source": "hudson_email", "data": r.json()}
-        return {"source": "hudson_email", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "hudson_email", "error": str(e)}
-
-def search_proxynova(query):
-    try:
-        r = requests.get(PROXYNOVA_URL, params={"query": query, "start": 0, "limit": 100}, timeout=15)
-        if r.status_code == 200:
-            return {"source": "proxynova", "data": r.json()}
-        return {"source": "proxynova", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "proxynova", "error": str(e)}
-
-def search_ip2location(ip):
-    try:
-        r = requests.get(IP2LOCATION_URL, params={"key": IP2LOCATION_KEY, "ip": ip}, timeout=10)
-        if r.status_code == 200:
-            return {"source": "ip2location", "data": r.json()}
-        return {"source": "ip2location", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "ip2location", "error": str(e)}
+        return {"source": "ipgeo", "error": str(e)}
 
 def search_ofdata(query, search_type):
     if search_type not in ["inn", "ogrn", "fio", "company"]:
@@ -447,21 +398,6 @@ def search_ofdata(query, search_type):
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
-def search_funstat(query, search_type):
-    if search_type not in ["telegram", "telegram_id"]:
-        return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram ID"}
-    if not query.isdigit():
-        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
-    try:
-        client = FunstatClient(FUNSTAT_TOKEN)
-        stats = client.stats_min(int(query))
-        if stats.success:
-            data = stats.data
-            return {"source": "funstat", "data": {"id": data.id, "first_name": data.first_name, "last_name": data.last_name, "is_bot": data.is_bot, "is_active": data.is_active, "first_msg_date": data.first_msg_date, "last_msg_date": data.last_msg_date, "total_msg_count": data.total_msg_count, "msg_in_groups_count": data.msg_in_groups_count, "adm_in_groups": data.adm_in_groups, "total_groups": data.total_groups, "usernames_count": data.usernames_count, "names_count": data.names_count}}
-        return {"source": "funstat", "error": "Пользователь не найден"}
-    except Exception as e:
-        return {"source": "funstat", "error": str(e)}
-
 def search_smsc():
     try:
         r = requests.get(SMSC_URL, params={"login": SMSC_LOGIN, "psw": SMSC_PASSWORD}, timeout=10)
@@ -471,123 +407,116 @@ def search_smsc():
     except Exception as e:
         return {"source": "smsc", "error": str(e)}
 
-# ==================== ANYAPI ====================
-def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, temperature=0.7, user_id=None):
-    if not ANYAPI_KEY:
-        return "Ошибка: ANYAPI_KEY не настроен"
+# ==================== ПАРСЕРЫ ====================
 
-    headers = {
-        "Authorization": f"Bearer {ANYAPI_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    messages = []
-    if user_id:
-        messages = get_history(user_id)
-
-    messages.append({"role": "user", "content": prompt})
-
-    payload = {
-        "model": model,
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": temperature
-    }
-
+def search_intelx(phone):
+    phone_clean = re.sub(r'\D', '', phone)
+    if len(phone_clean) < 8:
+        return {"source": "intelx", "error": "Номер слишком короткий"}
+    url = f"{INTELX_URL}db2/dbpn/{phone_clean[:2]}/{phone_clean[2:4]}/{phone_clean[4:6]}/{phone_clean[6:8]}.csv"
     try:
-        r = requests.post(f"{ANYAPI_URL}/chat/completions", headers=headers, json=payload, timeout=60)
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
         if r.status_code == 200:
-            data = r.json()
-            response = data.get('choices', [{}])[0].get('message', {}).get('content', '')
-            if user_id:
-                add_to_history(user_id, "user", prompt)
-                add_to_history(user_id, "assistant", response)
-            return response
-        return f"Ошибка {r.status_code}: {r.text[:200]}"
+            csv_data = list(csv.reader(io.StringIO(r.text)))
+            if len(csv_data) > 1:
+                headers = csv_data[0]
+                results = []
+                for row in csv_data[1:]:
+                    row_text = ' '.join(row)
+                    if phone_clean in row_text:
+                        result = {}
+                        for i, val in enumerate(row):
+                            if i < len(headers) and val:
+                                result[headers[i]] = val
+                        results.append(result)
+                if results:
+                    return {"source": "intelx", "data": {"total": len(results), "results": results[:20]}}
+                return {"source": "intelx", "error": "Номер не найден"}
+            return {"source": "intelx", "error": "CSV пустой"}
+        return {"source": "intelx", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return f"Ошибка: {e}"
+        return {"source": "intelx", "error": str(e)}
 
-# ==================== GITHUB ====================
-def search_github_user(username):
-    if not GITHUB_TOKEN:
-        return {"source": "github", "error": "GITHUB_TOKEN не настроен"}
-
+def search_getscam(query):
     try:
-        headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        url = f"{GITHUB_API_URL}/users/{username}"
-        r = requests.get(url, headers=headers, timeout=15)
-
+        r = requests.get(f"{GETSCAM_URL}/{query}", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         if r.status_code == 200:
-            data = r.json()
-            return {
-                "source": "github",
-                "data": {
-                    "login": data.get('login'),
-                    "name": data.get('name'),
-                    "email": data.get('email'),
-                    "company": data.get('company'),
-                    "bio": data.get('bio'),
-                    "location": data.get('location'),
-                    "public_repos": data.get('public_repos', 0),
-                    "followers": data.get('followers', 0),
-                    "following": data.get('following', 0),
-                    "html_url": data.get('html_url'),
-                    "created_at": data.get('created_at'),
-                    "blog": data.get('blog'),
-                    "twitter_username": data.get('twitter_username'),
-                    "avatar_url": data.get('avatar_url')
-                }
-            }
-        elif r.status_code == 404:
-            return {"source": "github", "error": "Пользователь не найден"}
-        else:
-            return {"source": "github", "error": f"HTTP {r.status_code}"}
+            return {"source": "getscam", "data": r.text[:500]}
+        return {"source": "getscam", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "getscam", "error": str(e)}
+
+def search_reviews(query):
+    try:
+        r = requests.get(f"{REVIEWS_URL}/{query}", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if r.status_code == 200:
+            return {"source": "reviews", "data": r.text[:500]}
+        return {"source": "reviews", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "reviews", "error": str(e)}
+
+def search_github(username):
+    try:
+        r = requests.get(f"{GITHUB_URL}/{username}", timeout=10)
+        if r.status_code == 200:
+            return {"source": "github", "data": r.json()}
+        return {"source": "github", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "github", "error": str(e)}
 
-def search_github_email(email):
-    if not GITHUB_TOKEN:
-        return {"source": "github_email", "error": "GITHUB_TOKEN не настроен"}
-
+def search_instagram(username):
     try:
-        headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        url = f"{GITHUB_API_URL}/search/commits"
-        params = {"q": email}
-        r = requests.get(url, headers=headers, params=params, timeout=15)
-
+        r = requests.get(f"{INSTAGRAM_URL}/{username}/?__a=1", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         if r.status_code == 200:
-            data = r.json()
-            items = data.get('items', [])
-            results = []
-            for item in items[:10]:
-                commit = item.get('commit', {})
-                author = commit.get('author', {})
-                repo = item.get('repository', {})
-                results.append({
-                    "repo": repo.get('full_name'),
-                    "message": commit.get('message', '')[:100],
-                    "author_name": author.get('name'),
-                    "author_email": author.get('email'),
-                    "date": author.get('date'),
-                    "url": item.get('html_url')
-                })
-            return {
-                "source": "github_email",
-                "data": {
-                    "total": data.get('total_count', 0),
-                    "results": results
-                }
-            }
-        else:
-            return {"source": "github_email", "error": f"HTTP {r.status_code}"}
+            return {"source": "instagram", "data": r.text[:500]}
+        return {"source": "instagram", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "github_email", "error": str(e)}
+        return {"source": "instagram", "error": str(e)}
+
+def search_binlist(bin):
+    try:
+        r = requests.get(f"{BINLIST_URL}/{bin}", timeout=10)
+        if r.status_code == 200:
+            return {"source": "binlist", "data": r.json()}
+        return {"source": "binlist", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "binlist", "error": str(e)}
+
+def search_macvendors(mac):
+    try:
+        r = requests.get(f"{MACVENDORS_URL}/{mac}", timeout=10)
+        if r.status_code == 200:
+            return {"source": "macvendors", "data": r.text.strip()}
+        return {"source": "macvendors", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "macvendors", "error": str(e)}
+
+def search_minecraft(username):
+    try:
+        r = requests.get(f"{MINECRAFT_URL}/{username}", timeout=10)
+        if r.status_code == 200:
+            return {"source": "minecraft", "data": r.json()}
+        return {"source": "minecraft", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "minecraft", "error": str(e)}
+
+def search_domainwhois(domain):
+    try:
+        r = requests.get(DOMAINWHOIS_URL, params={"q": domain}, timeout=10)
+        if r.status_code == 200:
+            return {"source": "domainwhois", "data": r.text}
+        return {"source": "domainwhois", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "domainwhois", "error": str(e)}
+
+def search_dnslookup(domain):
+    try:
+        r = requests.get(DNSLOOKUP_URL, params={"q": domain}, timeout=10)
+        if r.status_code == 200:
+            return {"source": "dnslookup", "data": r.text}
+        return {"source": "dnslookup", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "dnslookup", "error": str(e)}
 
 # ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
@@ -680,243 +609,160 @@ def search():
         "sources": []
     }
 
-    # ===== NIGHTSEARCH (НОВЫЙ) =====
-    try:
-        result["sources"].append(search_nightsearch(query, search_type))
-    except Exception as e:
-        result["sources"].append({"source": "nightsearch", "error": str(e)})
-
-    # ===== BIGBASE =====
+    # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         try:
             result["sources"].append(search_bigbase(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "bigbase", "error": str(e)})
 
-    # ===== INFINITY =====
+    # DEPSEARCH
+    if search_type in ["phone", "email", "fio", "vk", "telegram"]:
+        try:
+            result["sources"].append(search_depsearch(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "depsearch", "error": str(e)})
+
+    # INFINITY
     if search_type in ["phone", "email", "fio"]:
         try:
             result["sources"].append(search_infinity(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "infinity", "error": str(e)})
 
-    # ===== WHITE SEARCH =====
+    # WHITE SEARCH
     if search_type in ["phone", "email", "fio", "telegram", "telegram_id", "telegram_username", "vk", "ip", "snils", "inn", "passport", "auto", "vin"]:
         try:
             result["sources"].append(search_white_search(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "white_search", "error": str(e)})
 
-    # ===== JITLER =====
-    if search_type in ["telegram", "telegram_id", "telegram_username"]:
+    # JITLER
+    if search_type in ["phone", "telegram", "telegram_id", "telegram_username", "vk"]:
         try:
             result["sources"].append(search_jitler(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "jitler", "error": str(e)})
-    if search_type == "phone":
-        try:
-            result["sources"].append(search_jitler_phone(query))
-        except Exception as e:
-            result["sources"].append({"source": "jitler_phone", "error": str(e)})
 
-    # ===== VK =====
-    if search_type == "vk":
-        try:
-            result["sources"].append(search_vk(query))
-        except Exception as e:
-            result["sources"].append({"source": "vk", "error": str(e)})
-
-    # ===== SNUSBASE =====
-    if search_type in ["email", "fio", "ip"]:
-        try:
-            result["sources"].append(search_snusbase(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "snusbase", "error": str(e)})
-
-    # ===== ABUSEIPDB =====
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_abuseipdb(query))
-        except Exception as e:
-            result["sources"].append({"source": "abuseipdb", "error": str(e)})
-
-    # ===== PROXYCHECK =====
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_proxycheck(query))
-        except Exception as e:
-            result["sources"].append({"source": "proxycheck", "error": str(e)})
-
-    # ===== SHODAN (НОВЫЙ) =====
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_shodan(query))
-        except Exception as e:
-            result["sources"].append({"source": "shodan", "error": str(e)})
-
-    # ===== HUDSON ROCK =====
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_hudson_ip(query))
-        except Exception as e:
-            result["sources"].append({"source": "hudson_ip", "error": str(e)})
-    if search_type == "username":
-        try:
-            result["sources"].append(search_hudson_username(query))
-        except Exception as e:
-            result["sources"].append({"source": "hudson_username", "error": str(e)})
-    if search_type == "email":
-        try:
-            result["sources"].append(search_hudson_email(query))
-        except Exception as e:
-            result["sources"].append({"source": "hudson_email", "error": str(e)})
-
-    # ===== PROXYNOVA =====
-    if search_type in ["email", "fio", "username"]:
-        try:
-            result["sources"].append(search_proxynova(query))
-        except Exception as e:
-            result["sources"].append({"source": "proxynova", "error": str(e)})
-
-    # ===== IP2LOCATION =====
-    if search_type == "ip":
-        try:
-            result["sources"].append(search_ip2location(query))
-        except Exception as e:
-            result["sources"].append({"source": "ip2location", "error": str(e)})
-
-    # ===== OFDATA =====
-    if search_type in ["inn", "ogrn", "fio", "company"]:
-        try:
-            result["sources"].append(search_ofdata(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "ofdata", "error": str(e)})
-
-    # ===== FUNSTAT =====
-    if search_type in ["telegram", "telegram_id"] and query.isdigit():
-        try:
-            result["sources"].append(search_funstat(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "funstat", "error": str(e)})
-
-    # ===== LEAKCHECK (НОВЫЙ) =====
+    # LEAKCHECK
     if search_type in ["email", "phone"]:
         try:
             result["sources"].append(search_leakcheck(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "leakcheck", "error": str(e)})
 
-    # ===== VERIPHONE (НОВЫЙ) =====
+    # SNUSBASE
+    if search_type in ["email", "fio", "ip"]:
+        try:
+            result["sources"].append(search_snusbase(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "snusbase", "error": str(e)})
+
+    # LEAKOSINT
+    try:
+        result["sources"].append(search_leakosint(query))
+    except Exception as e:
+        result["sources"].append({"source": "leakosint", "error": str(e)})
+
+    # FUNSTAT
+    if search_type in ["telegram", "telegram_id"] and query.isdigit():
+        try:
+            result["sources"].append(search_funstat(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "funstat", "error": str(e)})
+
+    # VERIPHONE
     if search_type == "phone":
         try:
             result["sources"].append(search_veriphone(query))
         except Exception as e:
             result["sources"].append({"source": "veriphone", "error": str(e)})
 
-    # ===== GITHUB =====
+    # IPGEO
+    if search_type == "ip":
+        try:
+            result["sources"].append(search_ipgeo(query))
+        except Exception as e:
+            result["sources"].append({"source": "ipgeo", "error": str(e)})
+
+    # OFDATA
+    if search_type in ["inn", "ogrn", "fio", "company"]:
+        try:
+            result["sources"].append(search_ofdata(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "ofdata", "error": str(e)})
+
+    # INTELX (ПАРСЕР)
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_intelx(query))
+        except Exception as e:
+            result["sources"].append({"source": "intelx", "error": str(e)})
+
+    # GETSCAM (ПАРСЕР)
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_getscam(query))
+        except Exception as e:
+            result["sources"].append({"source": "getscam", "error": str(e)})
+
+    # REVIEWS (ПАРСЕР)
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_reviews(query))
+        except Exception as e:
+            result["sources"].append({"source": "reviews", "error": str(e)})
+
+    # GITHUB (ПАРСЕР)
     if search_type == "username":
         try:
-            result["sources"].append(search_github_user(query))
+            result["sources"].append(search_github(query))
         except Exception as e:
             result["sources"].append({"source": "github", "error": str(e)})
-    if search_type == "email":
+
+    # INSTAGRAM (ПАРСЕР)
+    if search_type == "username":
         try:
-            result["sources"].append(search_github_email(query))
+            result["sources"].append(search_instagram(query))
         except Exception as e:
-            result["sources"].append({"source": "github_email", "error": str(e)})
+            result["sources"].append({"source": "instagram", "error": str(e)})
+
+    # BINLIST (ПАРСЕР)
+    if re.match(r'^\d{6,8}$', query):
+        try:
+            result["sources"].append(search_binlist(query))
+        except Exception as e:
+            result["sources"].append({"source": "binlist", "error": str(e)})
+
+    # MAC VENDORS (ПАРСЕР)
+    if re.match(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$', query):
+        try:
+            result["sources"].append(search_macvendors(query))
+        except Exception as e:
+            result["sources"].append({"source": "macvendors", "error": str(e)})
+
+    # MINECRAFT (ПАРСЕР)
+    if search_type == "username":
+        try:
+            result["sources"].append(search_minecraft(query))
+        except Exception as e:
+            result["sources"].append({"source": "minecraft", "error": str(e)})
+
+    # DOMAIN WHOIS (ПАРСЕР)
+    if search_type == "domain":
+        try:
+            result["sources"].append(search_domainwhois(query))
+        except Exception as e:
+            result["sources"].append({"source": "domainwhois", "error": str(e)})
+
+    # DNS LOOKUP (ПАРСЕР)
+    if search_type == "domain":
+        try:
+            result["sources"].append(search_dnslookup(query))
+        except Exception as e:
+            result["sources"].append({"source": "dnslookup", "error": str(e)})
 
     return jsonify(result)
-
-# ============================================
-# AI ЧАТ
-# ============================================
-@app.route('/chat', methods=['POST'])
-def chat():
-    if not check_api_key():
-        return jsonify({"error": "Неверный API-ключ"}), 403
-
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Нет данных"}), 400
-
-    prompt = data.get('prompt', '').strip()
-    if not prompt:
-        return jsonify({"error": "Пустой запрос"}), 400
-
-    user_id = data.get('user_id', 'default_user')
-    model = data.get('model', 'google/gemma-4-26b-a4b-it:free')
-
-    response = ask_anyapi(prompt, model, user_id=user_id)
-
-    history = get_history(user_id)
-
-    return jsonify({
-        "prompt": prompt,
-        "model": model,
-        "response": response,
-        "history_length": len(history),
-        "max_history": MAX_HISTORY,
-        "timestamp": datetime.now().isoformat()
-    })
-
-# ============================================
-# ОЧИСТКА ИСТОРИИ
-# ============================================
-@app.route('/chat/clear', methods=['POST'])
-def clear_chat():
-    if not check_api_key():
-        return jsonify({"error": "Неверный API-ключ"}), 403
-
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Нет данных"}), 400
-
-    user_id = data.get('user_id', 'default_user')
-
-    clear_history(user_id)
-
-    return jsonify({
-        "status": "ok",
-        "message": f"История чата для {user_id} очищена"
-    })
-
-# ============================================
-# GITHUB ЭНДПОИНТЫ
-# ============================================
-@app.route('/github/user/<username>', methods=['GET'])
-def github_user(username):
-    if not check_api_key():
-        return jsonify({"error": "Неверный API-ключ"}), 403
-    return jsonify(search_github_user(username))
-
-@app.route('/github/email/<email>', methods=['GET'])
-def github_email(email):
-    if not check_api_key():
-        return jsonify({"error": "Неверный API-ключ"}), 403
-    return jsonify(search_github_email(email))
-
-# ============================================
-# TEMPMAIL
-# ============================================
-@app.route('/tempmail/generate', methods=['GET'])
-def tempmail_generate():
-    if not check_api_key():
-        return jsonify({"error": "Неверный API-ключ"}), 403
-    try:
-        r = requests.get("https://api.tempmail.lol/generate", timeout=10)
-        return jsonify(r.json()) if r.status_code == 200 else jsonify({"error": f"HTTP {r.status_code}"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/tempmail/check/<token>', methods=['GET'])
-def tempmail_check(token):
-    if not check_api_key():
-        return jsonify({"error": "Неверный API-ключ"}), 403
-    try:
-        r = requests.get(f"https://api.tempmail.lol/messages/{token}", timeout=10)
-        return jsonify(r.json()) if r.status_code == 200 else jsonify({"error": f"HTTP {r.status_code}"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # ============================================
 # HEALTH
@@ -932,32 +778,35 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "18.0",
-        "description": "OSINT-агрегатор (без DepSearch)",
+        "version": "22.0",
+        "description": "OSINT-агрегатор со всеми парсерами",
         "author": "@kmyfg",
         "sources": [
-            "NightSearch (НОВЫЙ)",
-            "BigBase (ротация 2 ключей)",
-            "Infinity",
+            "BigBase (3 ключа)",
+            "DepSearch",
+            "Infinity (2 ключа)",
             "White Search",
             "Jitler",
-            "VK",
+            "LeakCheck",
             "Snusbase",
-            "AbuseIPDB",
-            "Proxycheck",
-            "Shodan (НОВЫЙ)",
-            "Hudson Rock",
-            "Proxynova",
-            "IP2Location",
-            "OFDATA",
+            "LeakOSINT",
             "Funstat",
+            "Veriphone",
+            "IpGeo",
+            "OFDATA",
             "SMSC",
-            "LeakCheck (НОВЫЙ)",
-            "Veriphone (НОВЫЙ)",
-            "GitHub",
-            "AnyAPI (AI)"
+            "IntelX (парсер)",
+            "GetScam (парсер)",
+            "Reviews (парсер)",
+            "GitHub (парсер)",
+            "Instagram (парсер)",
+            "BinList (парсер)",
+            "MAC Vendors (парсер)",
+            "Minecraft (парсер)",
+            "Domain WHOIS (парсер)",
+            "DNS Lookup (парсер)"
         ],
-        "total_sources": 20
+        "total_sources": 23
     })
 
 if __name__ == '__main__':
