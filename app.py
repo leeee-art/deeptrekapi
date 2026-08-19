@@ -20,7 +20,7 @@ MASTER_KEY = os.environ.get('MASTER_KEY', 'deeptrek_fjnrndhfrb2947472992gdvsbdh'
 # ==================== ВСЕ РАБОЧИЕ КЛЮЧИ ====================
 
 # BIGBASE (2 РАБОЧИХ КЛЮЧА)
-BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'M9djfI8W3l-ozvCNsxPuLGONicsvgvnM')
+BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'hS9I51yASMt5yGj8S9k1jbbN6HmA38xA')
 BIGBASE_KEY_2 = os.environ.get('BIGBASE_KEY_2', 'IWTtHHz1lg_5XbYNHBWjiAtPiRrzpESM')
 BIGBASE_URL = os.environ.get('BIGBASE_URL', 'https://bigbase.top/api/search')
 
@@ -36,6 +36,10 @@ WHITESEARCH_URL = os.environ.get('WHITESEARCH_URL', 'https://api.whitesearch.wor
 # JITLER
 JITLER_TOKEN = os.environ.get('JITLER_TOKEN', '7M8wfVQlszWnbaaINN2ig7iA')
 JITLER_URL = os.environ.get('JITLER_URL', 'https://api.jitler.top/search')
+
+# NIGHT SEARCH
+NIGHTSEARCH_KEY = os.environ.get('NIGHTSEARCH_KEY', 'sk_66beac29ce86f915b184a9ddde7aecbfc6177ab265cf5c1f579ce53219422234')
+NIGHTSEARCH_URL = os.environ.get('NIGHTSEARCH_URL', 'https://nightsearch.life/api/search')
 
 # LEAKCHECK
 LEAKCHECK_KEY = os.environ.get('LEAKCHECK_KEY', '49535f49545f5245414c4c595f4150495f4b4559')
@@ -263,6 +267,54 @@ def search_jitler(query, search_type):
         return {"source": "jitler", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
+
+def search_nightsearch(query, search_type):
+    """Night Search API — поддерживает все типы"""
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "passport": "passport",
+        "inn": "inn",
+        "snils": "snils",
+        "vk": "vk",
+        "telegram": "telegram",
+        "telegram_id": "telegram",
+        "telegram_username": "telegram",
+        "auto": "auto",
+        "vin": "vin",
+        "ip": "ip",
+        "ogrn": "ogrn",
+        "username": "username",
+        "domain": "domain",
+        "card": "card",
+        "bank": "card",
+    }
+    if search_type not in type_map:
+        return {"source": "nightsearch", "error": f"Night Search не поддерживает тип {search_type}"}
+    try:
+        headers = {
+            "X-API-Key": NIGHTSEARCH_KEY,
+            "Content-Type": "application/json; charset=utf-8"
+        }
+        if search_type == "phone":
+            query = re.sub(r'\D', '', query)
+        payload = {
+            "query": query,
+            "search_type": type_map[search_type]
+        }
+        r = requests.post(NIGHTSEARCH_URL, headers=headers, json=payload, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            return {"source": "nightsearch", "data": data}
+        elif r.status_code == 401:
+            return {"source": "nightsearch", "error": "Неверный API ключ"}
+        elif r.status_code == 429:
+            return {"source": "nightsearch", "error": "Лимит запросов исчерпан"}
+        else:
+            return {"source": "nightsearch", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "nightsearch", "error": str(e)}
 
 def search_leakcheck(query, search_type="email"):
     try:
@@ -598,6 +650,13 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "jitler", "error": str(e)})
 
+    # NIGHT SEARCH — ВСЕ ТИПЫ
+    if search_type in ["phone", "email", "fio", "passport", "inn", "snils", "vk", "telegram", "telegram_id", "telegram_username", "auto", "vin", "ip", "ogrn", "username", "domain", "card", "bank"]:
+        try:
+            result["sources"].append(search_nightsearch(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "nightsearch", "error": str(e)})
+
     # LEAKCHECK
     if search_type in ["email", "phone"]:
         try:
@@ -734,6 +793,7 @@ def index():
             "Infinity (2 ключа)",
             "White Search",
             "Jitler",
+            "Night Search",
             "LeakCheck",
             "Snusbase",
             "Funstat",
@@ -752,7 +812,7 @@ def index():
             "Domain WHOIS (парсер)",
             "DNS Lookup (парсер)"
         ],
-        "total_sources": 21
+        "total_sources": 22
     })
 
 if __name__ == '__main__':
