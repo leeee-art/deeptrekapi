@@ -19,15 +19,10 @@ MASTER_KEY = os.environ.get('MASTER_KEY', 'deeptrek_fjnrndhfrb2947472992gdvsbdh'
 
 # ==================== ВСЕ РАБОЧИЕ КЛЮЧИ ====================
 
-# BIGBASE (3 КЛЮЧА)
-BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'yhIkVgFWlT4ldeiauETMCFGkla7-VYtH')
+# BIGBASE (2 РАБОЧИХ КЛЮЧА)
+BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'M9djfI8W3l-ozvCNsxPuLGONicsvgvnM')
 BIGBASE_KEY_2 = os.environ.get('BIGBASE_KEY_2', 'IWTtHHz1lg_5XbYNHBWjiAtPiRrzpESM')
-BIGBASE_KEY_3 = os.environ.get('BIGBASE_KEY_3', 'M9djfI8W3l-ozvCNsxPuLGONicsvgvnM')
 BIGBASE_URL = os.environ.get('BIGBASE_URL', 'https://bigbase.top/api/search')
-
-# DEPSEARCH
-DEPSEARCH_TOKEN = os.environ.get('DEPSEARCH_TOKEN', 'OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z')
-DEPSEARCH_URL = os.environ.get('DEPSEARCH_URL', 'https://api.depsearch.sbs/quest')
 
 # INFINITY (2 КЛЮЧА)
 INFINITY_TOKEN_1 = os.environ.get('INFINITY_TOKEN_1', 'Bjm928HUcvsw923ZMBX19gd110FWSZgd')
@@ -49,10 +44,6 @@ LEAKCHECK_URL = os.environ.get('LEAKCHECK_URL', 'https://leakcheck.net/api/publi
 # SNUSBASE
 SNUSBASE_KEY = os.environ.get('SNUSBASE_KEY', 'sb5029dec66mht55m78fx8bsw6tm8a')
 SNUSBASE_URL = os.environ.get('SNUSBASE_URL', 'https://api.snusbase.com/v3/search')
-
-# LEAKOSINT
-LEAKOSINT_TOKEN = os.environ.get('LEAKOSINT_TOKEN', '8602726148:KHqZhmJC')
-LEAKOSINT_URL = os.environ.get('LEAKOSINT_URL', 'https://leakosintapi.com/')
 
 # FUNSTAT
 FUNSTAT_TOKEN = os.environ.get('FUNSTAT_TOKEN', 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIyMDMzMDI5NDc1IiwianRpIjoiODJmMjlmNzQtYmJlMi00ZGUwLWEwZDQtN2EzMDJhMWE5MDViIiwiZXhwIjoxODAxMDA4MzM4fQ.Mba4aX85YAMcaMLfhUBzXtCoNmEujfMe-6sGBbp3kT-T2SiLM_Ho0BBAFAQ8_C6Gz06PH9mAYhfBvlLSjb4oVd1Fm_vmb8MC-wuObU3qgfGrYdGzVF3ntJHv-LdNELq-jsqvQOY3jq9meso9dUoyj5SviDQWL6cvnRQ03kpHWxA')
@@ -107,7 +98,7 @@ DOMAINWHOIS_URL = os.environ.get('DOMAINWHOIS_URL', 'https://api.hackertarget.co
 DNSLOOKUP_URL = os.environ.get('DNSLOOKUP_URL', 'https://api.hackertarget.com/dnslookup/')
 
 # ==================== РОТАТОРЫ ====================
-bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2, BIGBASE_KEY_3]
+bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2]
 bigbase_idx = 0
 infinity_tokens = [INFINITY_TOKEN_1, INFINITY_TOKEN_2]
 infinity_idx = 0
@@ -186,23 +177,6 @@ def search_bigbase(query, search_type):
         return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "bigbase", "error": str(e)}
-
-def search_depsearch(query, search_type):
-    type_map = {"phone": "phone", "email": "email", "fio": "name", "vk": "vk", "telegram": "telegram"}
-    if search_type not in type_map:
-        return {"source": "depsearch", "error": "Тип не поддерживается"}
-    try:
-        params = {"quest": query, "type": type_map[search_type], "token": DEPSEARCH_TOKEN}
-        r = requests.get(DEPSEARCH_URL, params=params, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            if "error" not in data:
-                results = data.get("results", [])
-                return {"source": "depsearch", "data": {"total": len(results), "results": results[:20]}}
-            return {"source": "depsearch", "error": data.get("error")}
-        return {"source": "depsearch", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "depsearch", "error": str(e)}
 
 def search_infinity(query, search_type):
     token = get_infinity_token()
@@ -314,19 +288,6 @@ def search_snusbase(query, search_type):
         return {"source": "snusbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
-
-def search_leakosint(query, limit=100):
-    try:
-        payload = {"token": LEAKOSINT_TOKEN, "request": query, "limit": limit, "lang": "ru"}
-        r = requests.post(LEAKOSINT_URL, json=payload, timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            if "Error code" in data:
-                return {"source": "leakosint", "error": data.get("Error code")}
-            return {"source": "leakosint", "data": data}
-        return {"source": "leakosint", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "leakosint", "error": str(e)}
 
 def search_funstat(query, search_type):
     if search_type not in ["telegram", "telegram_id"]:
@@ -616,13 +577,6 @@ def search():
         except Exception as e:
             result["sources"].append({"source": "bigbase", "error": str(e)})
 
-    # DEPSEARCH
-    if search_type in ["phone", "email", "fio", "vk", "telegram"]:
-        try:
-            result["sources"].append(search_depsearch(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "depsearch", "error": str(e)})
-
     # INFINITY
     if search_type in ["phone", "email", "fio"]:
         try:
@@ -657,12 +611,6 @@ def search():
             result["sources"].append(search_snusbase(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "snusbase", "error": str(e)})
-
-    # LEAKOSINT
-    try:
-        result["sources"].append(search_leakosint(query))
-    except Exception as e:
-        result["sources"].append({"source": "leakosint", "error": str(e)})
 
     # FUNSTAT
     if search_type in ["telegram", "telegram_id"] and query.isdigit():
@@ -782,14 +730,12 @@ def index():
         "description": "OSINT-агрегатор со всеми парсерами",
         "author": "@kmyfg",
         "sources": [
-            "BigBase (3 ключа)",
-            "DepSearch",
+            "BigBase (2 ключа)",
             "Infinity (2 ключа)",
             "White Search",
             "Jitler",
             "LeakCheck",
             "Snusbase",
-            "LeakOSINT",
             "Funstat",
             "Veriphone",
             "IpGeo",
@@ -806,7 +752,7 @@ def index():
             "Domain WHOIS (парсер)",
             "DNS Lookup (парсер)"
         ],
-        "total_sources": 23
+        "total_sources": 21
     })
 
 if __name__ == '__main__':
