@@ -23,10 +23,6 @@ BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', 'yhWCFGkla7-lT4ldeiIkVgFVYtHauET
 BIGBASE_KEY_2 = os.environ.get('BIGBASE_KEY_2', 'G1MFiznW5I7JJ-O4lwCg29nx2v0Xn6DE')
 BIGBASE_URL = os.environ.get('BIGBASE_URL', 'https://bigbase.top/api/search')
 
-# ==================== DEPSEARCH ====================
-DEPSEARCH_TOKEN = os.environ.get('DEPSEARCH_TOKEN', 'OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z')
-DEPSEARCH_URL = os.environ.get('DEPSEARCH_URL', 'https://api.depsearch.sbs/quest')
-
 # ==================== INFINITY ====================
 INFINITY_TOKEN = os.environ.get('INFINITY_TOKEN', 'QoNm98UeMLIqNjZ198snm98AdGvhqA88')
 INFINITY_URL = os.environ.get('INFINITY_URL', 'https://infinity-search.fun/find.php')
@@ -87,6 +83,22 @@ ANYAPI_URL = os.environ.get('ANYAPI_URL', 'https://api.anyapi.ai/v1')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 GITHUB_API_URL = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
 
+# ==================== NIGHTSEARCH (НОВЫЙ) ====================
+NIGHTSEARCH_KEY = os.environ.get('NIGHTSEARCH_KEY', 'sk_66beac29ce86f915b184a9ddde7aecbfc6177ab265cf5c1f579ce53219422234')
+NIGHTSEARCH_URL = os.environ.get('NIGHTSEARCH_URL', 'https://nightsearch.life/api/search')
+
+# ==================== SHODAN (НОВЫЙ) ====================
+SHODAN_KEY = os.environ.get('SHODAN_KEY', 'UJN4abrj0J8qLYvrp48bnWynNWI2wHpn')
+SHODAN_URL = os.environ.get('SHODAN_URL', 'https://api.shodan.io/shodan/host/')
+
+# ==================== LEAKCHECK (НОВЫЙ) ====================
+LEAKCHECK_KEY = os.environ.get('LEAKCHECK_KEY', '49535f49545f5245414c4c595f4150495f4b4559')
+LEAKCHECK_URL = os.environ.get('LEAKCHECK_URL', 'https://leakcheck.io/api/public')
+
+# ==================== VERIPHONE (НОВЫЙ) ====================
+VERIPHONE_KEY = os.environ.get('VERIPHONE_KEY', 'D997B34B302B4A06B3AB815312852E51')
+VERIPHONE_URL = os.environ.get('VERIPHONE_URL', 'https://api.veriphone.io/v2/verify')
+
 # ==================== ХРАНИЛИЩЕ ИСТОРИИ (30 СООБЩЕНИЙ) ====================
 user_history = {}
 MAX_HISTORY = 30
@@ -105,7 +117,7 @@ def add_to_history(user_id, role, content):
 def clear_history(user_id):
     user_history[user_id] = []
 
-# ==================== ФУНКЦИЯ СКРЫТИЯ ====================
+# ==================== ФУНКЦИЯ СКРЫТИЯ BIGBASE ====================
 def sanitize_bigbase(data):
     if isinstance(data, dict):
         for key, value in list(data.items()):
@@ -136,16 +148,16 @@ bigbase_key_index = 0
 
 def search_bigbase(query, search_type):
     global bigbase_key_index
-    
+
     for attempt in range(len(bigbase_keys)):
         key = bigbase_keys[bigbase_key_index]
         bigbase_key_index = (bigbase_key_index + 1) % len(bigbase_keys)
-        
+
         try:
             headers = {"Authorization": key, "Content-Type": "application/json"}
             data = {"search": query, "page": 0}
             r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
-            
+
             if r.status_code == 200:
                 result = r.json()
                 if result.get("error"):
@@ -162,44 +174,18 @@ def search_bigbase(query, search_type):
                 return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
         except Exception as e:
             continue
-    
-    return {"source": "bigbase", "error": "Все ключи BigBase не работают"}
 
-# ==================== DEPSEARCH ====================
-def search_depsearch(query, search_type):
-    type_map = {
-        "phone": "phone",
-        "email": "email", 
-        "fio": "name",
-        "vk": "vk",
-        "telegram": "telegram"
-    }
-    if search_type not in type_map:
-        return {"source": "depsearch", "error": "Тип не поддерживается"}
-    
-    try:
-        params = {"quest": query, "type": type_map[search_type], "token": DEPSEARCH_TOKEN}
-        r = requests.get(DEPSEARCH_URL, params=params, timeout=30)
-        
-        if r.status_code == 200:
-            data = r.json()
-            if "error" not in data:
-                results = data.get("results", [])
-                return {"source": "depsearch", "data": {"total": len(results), "results": results[:20]}}
-            return {"source": "depsearch", "error": data.get("error")}
-        return {"source": "depsearch", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "depsearch", "error": str(e)}
+    return {"source": "bigbase", "error": "Все ключи BigBase не работают"}
 
 # ==================== INFINITY ====================
 def search_infinity(query, search_type):
     if search_type not in ["phone", "email", "fio"]:
         return {"source": "infinity", "error": "Тип не поддерживается"}
-    
+
     try:
         params = {"token": INFINITY_TOKEN, search_type: query}
         r = requests.get(INFINITY_URL, params=params, timeout=15)
-        
+
         if r.status_code == 200:
             data = r.json()
             if data.get("results"):
@@ -209,123 +195,63 @@ def search_infinity(query, search_type):
     except Exception as e:
         return {"source": "infinity", "error": str(e)}
 
-# ==================== ANYAPI ====================
-def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, temperature=0.7, user_id=None):
-    if not ANYAPI_KEY:
-        return "Ошибка: ANYAPI_KEY не настроен"
-    
-    headers = {
-        "Authorization": f"Bearer {ANYAPI_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = []
-    if user_id:
-        messages = get_history(user_id)
-    
-    messages.append({"role": "user", "content": prompt})
-    
-    payload = {
-        "model": model,
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": temperature
-    }
-    
+# ==================== NIGHTSEARCH (НОВЫЙ) ====================
+def search_nightsearch(query, search_type):
     try:
-        r = requests.post(f"{ANYAPI_URL}/chat/completions", headers=headers, json=payload, timeout=60)
+        headers = {"X-API-Key": NIGHTSEARCH_KEY, "Content-Type": "application/json; charset=utf-8"}
+        payload = {"query": query, "search_type": search_type}
+        r = requests.post(NIGHTSEARCH_URL, headers=headers, json=payload, timeout=30)
         if r.status_code == 200:
-            data = r.json()
-            response = data.get('choices', [{}])[0].get('message', {}).get('content', '')
-            if user_id:
-                add_to_history(user_id, "user", prompt)
-                add_to_history(user_id, "assistant", response)
-            return response
-        return f"Ошибка {r.status_code}: {r.text[:200]}"
+            return {"source": "nightsearch", "data": r.json()}
+        return {"source": "nightsearch", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return f"Ошибка: {e}"
+        return {"source": "nightsearch", "error": str(e)}
 
-# ==================== GITHUB ====================
-def search_github_user(username):
-    if not GITHUB_TOKEN:
-        return {"source": "github", "error": "GITHUB_TOKEN не настроен"}
-    
+# ==================== SHODAN (НОВЫЙ) ====================
+def search_shodan(ip):
     try:
-        headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        url = f"{GITHUB_API_URL}/users/{username}"
-        r = requests.get(url, headers=headers, timeout=15)
-        
+        r = requests.get(f"{SHODAN_URL}{ip}?key={SHODAN_KEY}", timeout=10)
         if r.status_code == 200:
             data = r.json()
-            return {
-                "source": "github",
-                "data": {
-                    "login": data.get('login'),
-                    "name": data.get('name'),
-                    "email": data.get('email'),
-                    "company": data.get('company'),
-                    "bio": data.get('bio'),
-                    "location": data.get('location'),
-                    "public_repos": data.get('public_repos', 0),
-                    "followers": data.get('followers', 0),
-                    "following": data.get('following', 0),
-                    "html_url": data.get('html_url'),
-                    "created_at": data.get('created_at'),
-                    "blog": data.get('blog'),
-                    "twitter_username": data.get('twitter_username'),
-                    "avatar_url": data.get('avatar_url')
-                }
-            }
-        elif r.status_code == 404:
-            return {"source": "github", "error": "Пользователь не найден"}
-        else:
-            return {"source": "github", "error": f"HTTP {r.status_code}"}
+            return {"source": "shodan", "data": {
+                "ip": data.get("ip_str"),
+                "country": data.get("country_name"),
+                "city": data.get("city"),
+                "isp": data.get("isp"),
+                "org": data.get("org"),
+                "os": data.get("os"),
+                "ports": data.get("ports", [])[:10],
+                "hostnames": data.get("hostnames", [])
+            }}
+        return {"source": "shodan", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "github", "error": str(e)}
+        return {"source": "shodan", "error": str(e)}
 
-def search_github_email(email):
-    if not GITHUB_TOKEN:
-        return {"source": "github_email", "error": "GITHUB_TOKEN не настроен"}
-    
+# ==================== LEAKCHECK (НОВЫЙ) ====================
+def search_leakcheck(query, search_type="email"):
     try:
-        headers = {
-            "Authorization": f"token {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        url = f"{GITHUB_API_URL}/search/commits"
-        params = {"q": email}
-        r = requests.get(url, headers=headers, params=params, timeout=15)
-        
+        r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=10)
+        if r.status_code == 200:
+            return {"source": "leakcheck", "data": r.json()}
+        return {"source": "leakcheck", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "leakcheck", "error": str(e)}
+
+# ==================== VERIPHONE (НОВЫЙ) ====================
+def search_veriphone(phone):
+    try:
+        r = requests.get(VERIPHONE_URL, params={"phone": phone, "key": VERIPHONE_KEY}, timeout=10)
         if r.status_code == 200:
             data = r.json()
-            items = data.get('items', [])
-            results = []
-            for item in items[:10]:
-                commit = item.get('commit', {})
-                author = commit.get('author', {})
-                repo = item.get('repository', {})
-                results.append({
-                    "repo": repo.get('full_name'),
-                    "message": commit.get('message', '')[:100],
-                    "author_name": author.get('name'),
-                    "author_email": author.get('email'),
-                    "date": author.get('date'),
-                    "url": item.get('html_url')
-                })
-            return {
-                "source": "github_email",
-                "data": {
-                    "total": data.get('total_count', 0),
-                    "results": results
-                }
-            }
-        else:
-            return {"source": "github_email", "error": f"HTTP {r.status_code}"}
+            return {"source": "veriphone", "data": {
+                "valid": data.get("phone_valid", False),
+                "country": data.get("country_name"),
+                "region": data.get("phone_region"),
+                "carrier": data.get("carrier")
+            }}
+        return {"source": "veriphone", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "github_email", "error": str(e)}
+        return {"source": "veriphone", "error": str(e)}
 
 # ==================== ОСТАЛЬНЫЕ ПОИСКОВЫЕ ФУНКЦИИ ====================
 
@@ -545,13 +471,130 @@ def search_smsc():
     except Exception as e:
         return {"source": "smsc", "error": str(e)}
 
+# ==================== ANYAPI ====================
+def ask_anyapi(prompt, model="google/gemma-4-26b-a4b-it:free", max_tokens=500, temperature=0.7, user_id=None):
+    if not ANYAPI_KEY:
+        return "Ошибка: ANYAPI_KEY не настроен"
+
+    headers = {
+        "Authorization": f"Bearer {ANYAPI_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    messages = []
+    if user_id:
+        messages = get_history(user_id)
+
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature
+    }
+
+    try:
+        r = requests.post(f"{ANYAPI_URL}/chat/completions", headers=headers, json=payload, timeout=60)
+        if r.status_code == 200:
+            data = r.json()
+            response = data.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if user_id:
+                add_to_history(user_id, "user", prompt)
+                add_to_history(user_id, "assistant", response)
+            return response
+        return f"Ошибка {r.status_code}: {r.text[:200]}"
+    except Exception as e:
+        return f"Ошибка: {e}"
+
+# ==================== GITHUB ====================
+def search_github_user(username):
+    if not GITHUB_TOKEN:
+        return {"source": "github", "error": "GITHUB_TOKEN не настроен"}
+
+    try:
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        url = f"{GITHUB_API_URL}/users/{username}"
+        r = requests.get(url, headers=headers, timeout=15)
+
+        if r.status_code == 200:
+            data = r.json()
+            return {
+                "source": "github",
+                "data": {
+                    "login": data.get('login'),
+                    "name": data.get('name'),
+                    "email": data.get('email'),
+                    "company": data.get('company'),
+                    "bio": data.get('bio'),
+                    "location": data.get('location'),
+                    "public_repos": data.get('public_repos', 0),
+                    "followers": data.get('followers', 0),
+                    "following": data.get('following', 0),
+                    "html_url": data.get('html_url'),
+                    "created_at": data.get('created_at'),
+                    "blog": data.get('blog'),
+                    "twitter_username": data.get('twitter_username'),
+                    "avatar_url": data.get('avatar_url')
+                }
+            }
+        elif r.status_code == 404:
+            return {"source": "github", "error": "Пользователь не найден"}
+        else:
+            return {"source": "github", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "github", "error": str(e)}
+
+def search_github_email(email):
+    if not GITHUB_TOKEN:
+        return {"source": "github_email", "error": "GITHUB_TOKEN не настроен"}
+
+    try:
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        url = f"{GITHUB_API_URL}/search/commits"
+        params = {"q": email}
+        r = requests.get(url, headers=headers, params=params, timeout=15)
+
+        if r.status_code == 200:
+            data = r.json()
+            items = data.get('items', [])
+            results = []
+            for item in items[:10]:
+                commit = item.get('commit', {})
+                author = commit.get('author', {})
+                repo = item.get('repository', {})
+                results.append({
+                    "repo": repo.get('full_name'),
+                    "message": commit.get('message', '')[:100],
+                    "author_name": author.get('name'),
+                    "author_email": author.get('email'),
+                    "date": author.get('date'),
+                    "url": item.get('html_url')
+                })
+            return {
+                "source": "github_email",
+                "data": {
+                    "total": data.get('total_count', 0),
+                    "results": results
+                }
+            }
+        else:
+            return {"source": "github_email", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "github_email", "error": str(e)}
+
 # ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
     query = query.strip()
     if not query:
         return "unknown", None
-    
-    # ГРЗ
+
     auto_clean = re.sub(r'\s+', '', query.upper())
     auto_patterns = [
         r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$',
@@ -561,22 +604,18 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
     for pattern in auto_patterns:
         if re.match(pattern, auto_clean):
             return "auto", auto_clean
-    
-    # VIN
+
     vin_clean = re.sub(r'\s+', '', query.upper())
     if re.match(r'^[A-HJ-NPR-Z0-9]{17}$', vin_clean):
         return "vin", vin_clean
-    
-    # Email
+
     if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', query):
         return "email", query.lower()
-    
-    # IP
+
     ip_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
     if re.match(ip_pattern, query):
         return "ip", query
-    
-    # Телефон
+
     phone_clean = re.sub(r'[\s()+-]', '', query)
     if re.match(r'^(7|8|9)\d{10}$', phone_clean):
         if phone_clean.startswith('8'):
@@ -584,35 +623,29 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
         elif phone_clean.startswith('9'):
             phone_clean = '7' + phone_clean
         return "phone", phone_clean
-    
-    # VK
+
     if query.lower().startswith('id') and query[2:].isdigit():
         return "vk", query[2:]
-    
-    # ИНН
+
     if re.match(r'^\d{10}$', query) or re.match(r'^\d{12}$', query):
         return "inn", query
-    
-    # СНИЛС
+
     snils_clean = re.sub(r'[\s-]', '', query)
     if re.match(r'^\d{11}$', snils_clean):
         return "snils", snils_clean
-    
-    # Паспорт
+
     passport_clean = re.sub(r'[\s-]', '', query)
     if re.match(r'^\d{4}\d{6}$', passport_clean):
         return "passport", passport_clean
-    
-    # ФИО
+
     if re.search(r'[а-яА-Я]', query):
         words = query.split()
         if len(words) >= 2:
             return "fio", query
-    
-    # ОГРН
+
     if re.match(r'^\d{13}$', query):
         return "ogrn", query
-    
+
     return "username", query
 
 def check_api_key():
@@ -625,56 +658,55 @@ def check_api_key():
 def search():
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Нет данных"}), 400
-    
+
     query = data.get('query', '').strip()
     if not query:
         return jsonify({"error": "Пустой запрос"}), 400
-    
+
     search_type = data.get('type')
     if not search_type:
         search_type, normalized_query = detect_type(query)
         if normalized_query:
             query = normalized_query
-    
+
     result = {
         "query": query,
         "type": search_type,
         "timestamp": datetime.now().isoformat(),
         "sources": []
     }
-    
-    # ===== DEPSEARCH (ОСНОВНОЙ) =====
-    if search_type in ["phone", "email", "fio", "vk", "telegram"]:
-        try:
-            result["sources"].append(search_depsearch(query, search_type))
-        except Exception as e:
-            result["sources"].append({"source": "depsearch", "error": str(e)})
-    
+
+    # ===== NIGHTSEARCH (НОВЫЙ) =====
+    try:
+        result["sources"].append(search_nightsearch(query, search_type))
+    except Exception as e:
+        result["sources"].append({"source": "nightsearch", "error": str(e)})
+
     # ===== BIGBASE =====
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         try:
             result["sources"].append(search_bigbase(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "bigbase", "error": str(e)})
-    
+
     # ===== INFINITY =====
     if search_type in ["phone", "email", "fio"]:
         try:
             result["sources"].append(search_infinity(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "infinity", "error": str(e)})
-    
+
     # ===== WHITE SEARCH =====
     if search_type in ["phone", "email", "fio", "telegram", "telegram_id", "telegram_username", "vk", "ip", "snils", "inn", "passport", "auto", "vin"]:
         try:
             result["sources"].append(search_white_search(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "white_search", "error": str(e)})
-    
+
     # ===== JITLER =====
     if search_type in ["telegram", "telegram_id", "telegram_username"]:
         try:
@@ -686,35 +718,42 @@ def search():
             result["sources"].append(search_jitler_phone(query))
         except Exception as e:
             result["sources"].append({"source": "jitler_phone", "error": str(e)})
-    
+
     # ===== VK =====
     if search_type == "vk":
         try:
             result["sources"].append(search_vk(query))
         except Exception as e:
             result["sources"].append({"source": "vk", "error": str(e)})
-    
+
     # ===== SNUSBASE =====
     if search_type in ["email", "fio", "ip"]:
         try:
             result["sources"].append(search_snusbase(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "snusbase", "error": str(e)})
-    
+
     # ===== ABUSEIPDB =====
     if search_type == "ip":
         try:
             result["sources"].append(search_abuseipdb(query))
         except Exception as e:
             result["sources"].append({"source": "abuseipdb", "error": str(e)})
-    
+
     # ===== PROXYCHECK =====
     if search_type == "ip":
         try:
             result["sources"].append(search_proxycheck(query))
         except Exception as e:
             result["sources"].append({"source": "proxycheck", "error": str(e)})
-    
+
+    # ===== SHODAN (НОВЫЙ) =====
+    if search_type == "ip":
+        try:
+            result["sources"].append(search_shodan(query))
+        except Exception as e:
+            result["sources"].append({"source": "shodan", "error": str(e)})
+
     # ===== HUDSON ROCK =====
     if search_type == "ip":
         try:
@@ -731,35 +770,49 @@ def search():
             result["sources"].append(search_hudson_email(query))
         except Exception as e:
             result["sources"].append({"source": "hudson_email", "error": str(e)})
-    
+
     # ===== PROXYNOVA =====
     if search_type in ["email", "fio", "username"]:
         try:
             result["sources"].append(search_proxynova(query))
         except Exception as e:
             result["sources"].append({"source": "proxynova", "error": str(e)})
-    
+
     # ===== IP2LOCATION =====
     if search_type == "ip":
         try:
             result["sources"].append(search_ip2location(query))
         except Exception as e:
             result["sources"].append({"source": "ip2location", "error": str(e)})
-    
+
     # ===== OFDATA =====
     if search_type in ["inn", "ogrn", "fio", "company"]:
         try:
             result["sources"].append(search_ofdata(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "ofdata", "error": str(e)})
-    
+
     # ===== FUNSTAT =====
     if search_type in ["telegram", "telegram_id"] and query.isdigit():
         try:
             result["sources"].append(search_funstat(query, search_type))
         except Exception as e:
             result["sources"].append({"source": "funstat", "error": str(e)})
-    
+
+    # ===== LEAKCHECK (НОВЫЙ) =====
+    if search_type in ["email", "phone"]:
+        try:
+            result["sources"].append(search_leakcheck(query, search_type))
+        except Exception as e:
+            result["sources"].append({"source": "leakcheck", "error": str(e)})
+
+    # ===== VERIPHONE (НОВЫЙ) =====
+    if search_type == "phone":
+        try:
+            result["sources"].append(search_veriphone(query))
+        except Exception as e:
+            result["sources"].append({"source": "veriphone", "error": str(e)})
+
     # ===== GITHUB =====
     if search_type == "username":
         try:
@@ -771,7 +824,7 @@ def search():
             result["sources"].append(search_github_email(query))
         except Exception as e:
             result["sources"].append({"source": "github_email", "error": str(e)})
-    
+
     return jsonify(result)
 
 # ============================================
@@ -781,22 +834,22 @@ def search():
 def chat():
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Нет данных"}), 400
-    
+
     prompt = data.get('prompt', '').strip()
     if not prompt:
         return jsonify({"error": "Пустой запрос"}), 400
-    
+
     user_id = data.get('user_id', 'default_user')
     model = data.get('model', 'google/gemma-4-26b-a4b-it:free')
-    
+
     response = ask_anyapi(prompt, model, user_id=user_id)
-    
+
     history = get_history(user_id)
-    
+
     return jsonify({
         "prompt": prompt,
         "model": model,
@@ -813,15 +866,15 @@ def chat():
 def clear_chat():
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Нет данных"}), 400
-    
+
     user_id = data.get('user_id', 'default_user')
-    
+
     clear_history(user_id)
-    
+
     return jsonify({
         "status": "ok",
         "message": f"История чата для {user_id} очищена"
@@ -834,17 +887,13 @@ def clear_chat():
 def github_user(username):
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    
-    result = search_github_user(username)
-    return jsonify(result)
+    return jsonify(search_github_user(username))
 
 @app.route('/github/email/<email>', methods=['GET'])
 def github_email(email):
     if not check_api_key():
         return jsonify({"error": "Неверный API-ключ"}), 403
-    
-    result = search_github_email(email)
-    return jsonify(result)
+    return jsonify(search_github_email(email))
 
 # ============================================
 # TEMPMAIL
@@ -883,39 +932,32 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "17.0",
-        "description": "OSINT-агрегатор с DepSearch (272+ результатов), Infinity (25+), BigBase (ротация 2 ключей), White Search, Jitler, VK, Snusbase, AbuseIPDB, Proxycheck, Hudson Rock, Proxynova, IP2Location, OFDATA, Funstat, SMSC, GitHub, AnyAPI",
+        "version": "18.0",
+        "description": "OSINT-агрегатор (без DepSearch)",
         "author": "@kmyfg",
         "sources": [
-            "DepSearch (ОСНОВНОЙ) — 272+ результатов по телефону",
-            "Infinity — 25+ результатов",
+            "NightSearch (НОВЫЙ)",
             "BigBase (ротация 2 ключей)",
+            "Infinity",
             "White Search",
             "Jitler",
             "VK",
             "Snusbase",
             "AbuseIPDB",
             "Proxycheck",
+            "Shodan (НОВЫЙ)",
             "Hudson Rock",
             "Proxynova",
             "IP2Location",
             "OFDATA",
             "Funstat",
             "SMSC",
+            "LeakCheck (НОВЫЙ)",
+            "Veriphone (НОВЫЙ)",
             "GitHub",
-            "AnyAPI"
+            "AnyAPI (AI)"
         ],
-        "total_sources": 17,
-        "endpoints": {
-            "/search": "POST - основной поиск",
-            "/chat": "POST - AI чат (AnyAPI, история 30 сообщений)",
-            "/chat/clear": "POST - очистка истории чата",
-            "/github/user/<username>": "GET - информация о пользователе GitHub",
-            "/github/email/<email>": "GET - поиск email в GitHub",
-            "/tempmail/generate": "GET - генерация временной почты",
-            "/tempmail/check/<token>": "GET - проверка временной почты",
-            "/health": "GET - статус"
-        }
+        "total_sources": 20
     })
 
 if __name__ == '__main__':
