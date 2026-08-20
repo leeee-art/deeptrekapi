@@ -67,9 +67,6 @@ OMKAR_API_KEY = 'ok_ad50fb80682eff950d34e7a9b3a77c8c'
 
 VK_TOKEN = 'vk1.a.WX465fcyCl3FoFXysIyBPjQYn4D4Cgz3SJAmX7mxXvQBMUzTjzkaZfA0Tt-FBRDuA4WYq7tvbO3TaqZbvdl3oAva367V8KP4AQUFI1kC3I8UnT687rM12Bv-d-Ax9FnXAeOTxMp8MTBUwqQ_6kH-1LAQIT7fgdzWaawG3CEOhe6Q5VSuzTrDFF0iWIrUAXIwT22_uN6XzH25tZCegI-AWQ'
 
-SMSC_LOGIN = 'kirahacker333'
-SMSC_PASSWORD = 'Zangar5050'
-
 bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2]
 bigbase_idx = 0
 infinity_tokens = [INFINITY_TOKEN_1, INFINITY_TOKEN_2]
@@ -116,7 +113,7 @@ def search_bigbase(query, search_type):
     try:
         headers = {"Authorization": key, "Content-Type": "application/json"}
         data = {"search": query, "page": 0}
-        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=30)
+        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=60)
         if r.status_code == 200:
             result = r.json()
             if result.get("error"):
@@ -135,7 +132,7 @@ def search_infinity(query, search_type):
         return {"source": "infinity", "error": "Тип не поддерживается"}
     try:
         params = {"token": token, search_type: query}
-        r = requests.get(INFINITY_URL, params=params, timeout=15)
+        r = requests.get(INFINITY_URL, params=params, timeout=30)
         if r.status_code == 200:
             data = r.json()
             if data.get("results"):
@@ -172,7 +169,7 @@ def search_white_search(query, search_type):
             params = {"vin": query}
         else:
             params = {"q": query}
-        r = requests.get(url, params=params, headers=headers, timeout=30)
+        r = requests.get(url, params=params, headers=headers, timeout=60)
         if r.status_code == 200:
             data = r.json()
             if data.get("success") and data.get("data"):
@@ -194,7 +191,7 @@ def search_jitler(query, search_type):
     try:
         headers = {"Authorization": f"Bearer {JITLER_TOKEN}", "Content-Type": "application/json"}
         payload = {"type": type_map[search_type], "query": query, "page": 1}
-        r = requests.post(JITLER_URL, headers=headers, json=payload, timeout=30)
+        r = requests.post(JITLER_URL, headers=headers, json=payload, timeout=60)
         if r.status_code == 200:
             data = r.json()
             return {"source": "jitler", "data": data.get("response", {})}
@@ -218,10 +215,15 @@ def search_nightsearch(query, search_type):
         if search_type == "phone":
             query = re.sub(r'\D', '', query)
         payload = {"query": query, "search_type": type_map[search_type]}
-        r = requests.post(NIGHTSEARCH_URL, headers=headers, json=payload, timeout=30)
+        r = requests.post(NIGHTSEARCH_URL, headers=headers, json=payload, timeout=120)
         if r.status_code == 200:
             data = r.json()
-            return {"source": "nightsearch", "data": data}
+            results = data.get("results", [])
+            if not results:
+                return {"source": "nightsearch", "error": "Ничего не найдено"}
+            return {"source": "nightsearch", "data": {"total": len(results), "results": results}}
+        elif r.status_code == 500:
+            return {"source": "nightsearch", "error": "Night Search внутренняя ошибка (500)"}
         elif r.status_code == 401:
             return {"source": "nightsearch", "error": "Неверный API ключ"}
         elif r.status_code == 429:
@@ -249,7 +251,7 @@ def search_hunterhow(query, search_type):
             "end_time": "2026-12-31",
             "fields": "ip,port,domain,protocol,transport_protocol,web_title,country,province,city,url,asn,as_org,as_name,status_code,cert,os,header,header_server,banner,product,updated_at,body"
         }
-        r = requests.get(HUNTERHOW_URL, params=params, timeout=30)
+        r = requests.get(HUNTERHOW_URL, params=params, timeout=60)
         if r.status_code == 200:
             data = r.json()
             if data.get("code") == 200:
@@ -271,14 +273,14 @@ def search_hunter(query, search_type):
     try:
         if search_type == "domain":
             params = {"domain": query, "api_key": HUNTER_API_KEY, "limit": 50}
-            r = requests.get(f"{HUNTER_URL}/domain-search", params=params, timeout=30)
+            r = requests.get(f"{HUNTER_URL}/domain-search", params=params, timeout=60)
             if r.status_code == 200:
                 data = r.json()
                 emails = data.get("data", {}).get("emails", [])
                 return {"source": "hunter", "data": {"domain": query, "total_emails": len(emails), "emails": [{"email": e.get("value"), "type": e.get("type"), "first_name": e.get("first_name"), "last_name": e.get("last_name"), "position": e.get("position"), "department": e.get("department"), "confidence": e.get("confidence")} for e in emails[:20]]}}
         elif search_type == "email":
             params = {"email": query, "api_key": HUNTER_API_KEY}
-            r = requests.get(f"{HUNTER_URL}/email-verifier", params=params, timeout=30)
+            r = requests.get(f"{HUNTER_URL}/email-verifier", params=params, timeout=60)
             if r.status_code == 200:
                 data = r.json()
                 return {"source": "hunter", "data": data.get("data", {})}
@@ -290,7 +292,7 @@ def search_numverify(phone):
     try:
         phone_clean = re.sub(r'\D', '', phone)
         params = {"access_key": NUMVERIFY_API_KEY, "number": phone_clean, "format": 1}
-        r = requests.get(NUMVERIFY_URL, params=params, timeout=15)
+        r = requests.get(NUMVERIFY_URL, params=params, timeout=30)
         if r.status_code == 200:
             data = r.json()
             if data.get("valid"):
@@ -302,7 +304,7 @@ def search_numverify(phone):
 
 def search_leakcheck(query, search_type="email"):
     try:
-        r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=10)
+        r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=30)
         if r.status_code == 200:
             return {"source": "leakcheck", "data": r.json()}
         return {"source": "leakcheck", "error": f"HTTP {r.status_code}"}
@@ -318,7 +320,7 @@ def search_snusbase(query, search_type):
             snus_type = "username"
         payload = {"terms": [query], "types": [snus_type], "wildcard": False}
         headers = {"Auth": SNUSBASE_KEY, "Content-Type": "application/json"}
-        r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=30)
+        r = requests.post(SNUSBASE_URL, headers=headers, json=payload, timeout=60)
         if r.status_code == 200:
             return {"source": "snusbase", "data": r.json()}
         return {"source": "snusbase", "error": f"HTTP {r.status_code}"}
@@ -343,7 +345,7 @@ def search_funstat(query, search_type):
 def search_veriphone(phone):
     try:
         phone_clean = re.sub(r'\D', '', phone)
-        r = requests.get(VERIPHONE_URL, params={"phone": phone_clean, "key": VERIPHONE_KEY}, timeout=10)
+        r = requests.get(VERIPHONE_URL, params={"phone": phone_clean, "key": VERIPHONE_KEY}, timeout=30)
         if r.status_code == 200:
             data = r.json()
             return {"source": "veriphone", "data": {"valid": data.get("phone_valid", False), "country": data.get("country_name"), "region": data.get("phone_region"), "carrier": data.get("carrier")}}
@@ -353,7 +355,7 @@ def search_veriphone(phone):
 
 def search_ipgeo(ip):
     try:
-        r = requests.get(IPGEO_URL, params={"apiKey": IPGEO_KEY, "ip": ip}, timeout=10)
+        r = requests.get(IPGEO_URL, params={"apiKey": IPGEO_KEY, "ip": ip}, timeout=30)
         if r.status_code == 200:
             return {"source": "ipgeo", "data": r.json()}
         return {"source": "ipgeo", "error": f"HTTP {r.status_code}"}
@@ -367,7 +369,7 @@ def search_ofdata(query, search_type):
         by = search_type if search_type in ["inn", "ogrn"] else "name"
         obj = "org" if search_type in ["inn", "ogrn", "company"] else "ent"
         url = f"{OFDATA_URL}?key={OFDATA_KEY}&by={by}&obj={obj}&query={query}&limit=10"
-        r = requests.get(url, timeout=15)
+        r = requests.get(url, timeout=30)
         if r.status_code == 200:
             data = r.json()
             if data.get("data", {}).get("Записи"):
@@ -382,7 +384,7 @@ def search_omkar_phone(phone):
         url = "https://carrier-lookup-api.omkar.cloud/lookup"
         params = {"phone": phone}
         headers = {"API-Key": OMKAR_API_KEY}
-        r = requests.get(url, params=params, headers=headers, timeout=10)
+        r = requests.get(url, params=params, headers=headers, timeout=30)
         if r.status_code == 200:
             return {"source": "omkar_phone", "data": r.json()}
         return {"source": "omkar_phone", "error": f"HTTP {r.status_code}"}
@@ -394,7 +396,7 @@ def search_omkar_email(email):
         url = "https://email-verification-api.omkar.cloud/verify"
         params = {"email": email}
         headers = {"API-Key": OMKAR_API_KEY}
-        r = requests.get(url, params=params, headers=headers, timeout=10)
+        r = requests.get(url, params=params, headers=headers, timeout=30)
         if r.status_code == 200:
             return {"source": "omkar_email", "data": r.json()}
         return {"source": "omkar_email", "error": f"HTTP {r.status_code}"}
@@ -404,7 +406,7 @@ def search_omkar_email(email):
 def search_omkar_reviews(query):
     try:
         url = "https://travel-data-api.omkar.cloud/travel/reviews"
-        r = requests.get(url, params={"query": query}, headers={"API-Key": OMKAR_API_KEY}, timeout=30)
+        r = requests.get(url, params={"query": query}, headers={"API-Key": OMKAR_API_KEY}, timeout=60)
         if r.status_code == 200:
             data = r.json()
             results = []
@@ -419,7 +421,7 @@ def search_vk(user_id):
     try:
         url = "https://api.vk.com/method/users.get"
         params = {"access_token": VK_TOKEN, "user_ids": user_id, "v": "5.131", "fields": "first_name,last_name,domain,followers_count,is_closed,sex,bdate,city,country,photo_max_orig,status"}
-        r = requests.get(url, params=params, timeout=10)
+        r = requests.get(url, params=params, timeout=30)
         if r.status_code == 200:
             data = r.json()
             if "response" in data and data["response"]:
@@ -435,7 +437,7 @@ def search_intelx(phone):
         return {"source": "intelx", "error": "Номер слишком короткий"}
     url = f"https://data.intelx.io/saverudata/db2/dbpn/{phone_clean[:2]}/{phone_clean[2:4]}/{phone_clean[4:6]}/{phone_clean[6:8]}.csv"
     try:
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15, verify=False)
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30, verify=False)
         if r.status_code == 200:
             csv_data = list(csv.reader(io.StringIO(r.text)))
             if len(csv_data) > 1:
@@ -464,7 +466,7 @@ def search_whatsapp(phone):
     elif not phone_clean.startswith('7'):
         phone_clean = '7' + phone_clean
     try:
-        r = requests.get(f"https://wa.me/{phone_clean}", timeout=10, allow_redirects=True)
+        r = requests.get(f"https://wa.me/{phone_clean}", timeout=30, allow_redirects=True)
         if r.status_code == 200:
             return {"source": "whatsapp", "data": {"exists": "not on WhatsApp" not in r.text, "phone": phone_clean}}
         return {"source": "whatsapp", "error": f"HTTP {r.status_code}"}
@@ -477,7 +479,7 @@ def search_odnoklassniki(phone):
     try:
         url = "https://ok.ru/search"
         params = {"st.mode": "Users", "st.query": phone_clean}
-        r = requests.get(url, headers=headers, params=params, timeout=10)
+        r = requests.get(url, headers=headers, params=params, timeout=30)
         if r.status_code == 200:
             match = re.search(r'num-found["\s]*:["\s]*(\d+)', r.text)
             exists = match and int(match.group(1)) > 0
@@ -489,7 +491,7 @@ def search_odnoklassniki(phone):
 def search_telegram(username):
     username = username.replace("@", "").strip()
     try:
-        r = requests.get(f"https://t.me/{username}", timeout=10)
+        r = requests.get(f"https://t.me/{username}", timeout=30)
         if r.status_code == 200:
             exists = "is not available" not in r.text
             return {"source": "telegram", "data": {"exists": exists, "username": username}}
@@ -502,7 +504,7 @@ def search_tiktok(username):
     url = f"https://www.tiktok.com/@{username}"
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        r = requests.get(url, headers=headers, timeout=15)
+        r = requests.get(url, headers=headers, timeout=30)
         if r.status_code == 200:
             followers_match = re.search(r'"followerCount":(\d+)', r.text)
             followers = int(followers_match.group(1)) if followers_match else 0
@@ -516,7 +518,7 @@ def search_tiktok(username):
 def search_bin(bin_number):
     bin_number = bin_number[:6]
     try:
-        r = requests.get(f"https://lookup.binlist.net/{bin_number}", headers={'Accept-Version': '3'}, timeout=10)
+        r = requests.get(f"https://lookup.binlist.net/{bin_number}", headers={'Accept-Version': '3'}, timeout=30)
         if r.status_code == 200:
             data = r.json()
             return {"source": "bin", "data": {"bin": bin_number, "bank": data.get('bank', {}).get('name'), "country": data.get('country', {}).get('name'), "brand": data.get('scheme'), "type": data.get('type')}}
@@ -547,7 +549,7 @@ def search_dns(domain):
 def search_subdomains(domain):
     try:
         url = f"https://crt.sh/?q=%25.{domain}&output=json"
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, timeout=60)
         if r.status_code == 200:
             data = r.json()
             subdomains = set()
@@ -566,7 +568,7 @@ def search_headers(url):
     if not url.startswith('http'):
         url = 'https://' + url
     try:
-        r = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        r = requests.get(url, timeout=30, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
         return {"source": "headers", "data": {"url": url, "status_code": r.status_code, "server": r.headers.get('Server'), "content_type": r.headers.get('Content-Type'), "headers": dict(r.headers)}}
     except Exception as e:
         return {"source": "headers", "error": str(e)}
