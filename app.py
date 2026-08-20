@@ -273,7 +273,6 @@ def search_nightsearch(query, search_type):
         return {"source": "nightsearch", "error": str(e)}
 
 def search_hunterhow(query, search_type):
-    """Hunter.how — поиск по IP, домену"""
     if not HUNTERHOW_API_KEY:
         return {"source": "hunterhow", "error": "Ключ не настроен"}
     if search_type not in ["ip", "domain"]:
@@ -310,7 +309,6 @@ def search_hunterhow(query, search_type):
         return {"source": "hunterhow", "error": str(e)}
 
 def search_hunter(query, search_type):
-    """Hunter.io — email по домену"""
     if not HUNTER_API_KEY:
         return {"source": "hunter", "error": "Ключ не настроен"}
     if search_type not in ["domain", "company", "email"]:
@@ -438,7 +436,49 @@ def search_ofdata(query, search_type):
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
-# ==================== VK ФУНКЦИИ ====================
+def search_omkar_phone(phone):
+    if not OMKAR_API_KEY:
+        return {"source": "omkar_phone", "error": "Ключ не настроен"}
+    try:
+        url = "https://carrier-lookup-api.omkar.cloud/lookup"
+        params = {"phone": phone}
+        headers = {"API-Key": OMKAR_API_KEY}
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            return {"source": "omkar_phone", "data": r.json()}
+        return {"source": "omkar_phone", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "omkar_phone", "error": str(e)}
+
+def search_omkar_email(email):
+    if not OMKAR_API_KEY:
+        return {"source": "omkar_email", "error": "Ключ не настроен"}
+    try:
+        url = "https://email-verification-api.omkar.cloud/verify"
+        params = {"email": email}
+        headers = {"API-Key": OMKAR_API_KEY}
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            return {"source": "omkar_email", "data": r.json()}
+        return {"source": "omkar_email", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "omkar_email", "error": str(e)}
+
+def search_omkar_reviews(query):
+    if not OMKAR_API_KEY:
+        return {"source": "omkar_reviews", "error": "Ключ не настроен"}
+    try:
+        url = "https://travel-data-api.omkar.cloud/travel/reviews"
+        r = requests.get(url, params={"query": query}, headers={"API-Key": OMKAR_API_KEY}, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            results = []
+            for review in data.get('results', [])[:20]:
+                results.append({"title": review.get('title'), "rating": review.get('rating'), "text": review.get('text')[:500] if review.get('text') else None, "date": review.get('published_at_date'), "author": review.get('reviewer', {}).get('name'), "link": review.get('review_link')})
+            return {"source": "omkar_reviews", "data": {"query": query, "total": data.get('count', 0), "reviews": results}}
+        return {"source": "omkar_reviews", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "omkar_reviews", "error": str(e)}
 
 def search_vk(user_id):
     if not VK_TOKEN:
@@ -455,8 +495,6 @@ def search_vk(user_id):
         return {"source": "vk", "error": "Пользователь не найден"}
     except Exception as e:
         return {"source": "vk", "error": str(e)}
-
-# ==================== ПАРСЕРЫ ====================
 
 def search_intelx(phone):
     phone_clean = re.sub(r'\D', '', phone)
@@ -749,6 +787,18 @@ def search():
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
 
+    # OMKAR PHONE
+    if search_type == "phone":
+        result["sources"].append(search_omkar_phone(query))
+
+    # OMKAR EMAIL
+    if search_type == "email":
+        result["sources"].append(search_omkar_email(query))
+
+    # OMKAR REVIEWS
+    if search_type in ["fio", "phone", "username"]:
+        result["sources"].append(search_omkar_reviews(query))
+
     # VK
     if search_type == "vk":
         result["sources"].append(search_vk(query))
@@ -812,17 +862,18 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "23.0",
+        "version": "24.0",
         "sources": [
             "BigBase (2 ключа)", "Infinity (2 ключа)", "White Search",
             "Jitler", "Night Search", "Hunter.how", "Hunter.io",
             "Numverify", "LeakCheck", "Snusbase", "Funstat",
-            "Veriphone", "IpGeo", "OFDATA", "VK API",
+            "Veriphone", "IpGeo", "OFDATA", "Omkar Phone",
+            "Omkar Email", "Omkar Reviews", "VK API",
             "IntelX", "WhatsApp", "Odnoklassniki", "Telegram",
             "TikTok", "BIN", "WHOIS", "DNS", "Subdomains",
             "Headers", "Social Links", "Google Dorks"
         ],
-        "total_sources": 27
+        "total_sources": 30
     })
 
 if __name__ == '__main__':
