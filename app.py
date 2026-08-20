@@ -10,112 +10,83 @@ import whois
 import dns.resolver
 import base64
 import os
-import random
-import string
-from datetime import datetime, date
+from datetime import datetime
 from typing import Tuple, Optional
 from urllib.parse import unquote, quote
-from collections import defaultdict
 from funstat_api import FunstatClient
 
 app = Flask(__name__)
 CORS(app)
 
-# ==================== КОНФИГ ====================
-MASTER_KEY = os.environ.get('MASTER_KEY', '')
+MASTER_KEY = 'deeptrek_fjnrndhfrb2947472992gdvsbdh'
 
-# ==================== ВСЕ КЛЮЧИ ИЗ ENV ====================
+BIGBASE_KEY_1 = 'hS9I51yASMt5yGj8S9k1jbbN6HmA38xA'
+BIGBASE_KEY_2 = 'IWTtHHz1lg_5XbYNHBWjiAtPiRrzpESM'
+BIGBASE_URL = 'https://bigbase.top/api/search'
 
-# BIGBASE (2 КЛЮЧА)
-BIGBASE_KEY_1 = os.environ.get('BIGBASE_KEY_1', '')
-BIGBASE_KEY_2 = os.environ.get('BIGBASE_KEY_2', '')
-BIGBASE_URL = os.environ.get('BIGBASE_URL', 'https://bigbase.top/api/search')
+INFINITY_TOKEN_1 = 'Bjm928HUcvsw923ZMBX19gd110FWSZgd'
+INFINITY_TOKEN_2 = 'QoNm98UeMLIqNjZ198snm98AdGvhqA88'
+INFINITY_URL = 'https://infinity-search.fun/find.php'
 
-# INFINITY (2 КЛЮЧА)
-INFINITY_TOKEN_1 = os.environ.get('INFINITY_TOKEN_1', '')
-INFINITY_TOKEN_2 = os.environ.get('INFINITY_TOKEN_2', '')
-INFINITY_URL = os.environ.get('INFINITY_URL', 'https://infinity-search.fun/find.php')
+WHITESEARCH_KEY = 'WS-PUBLIC-9X7K-2M4P'
+WHITESEARCH_URL = 'https://api.whitesearch.workers.dev/api'
 
-# WHITE SEARCH
-WHITESEARCH_KEY = os.environ.get('WHITESEARCH_KEY', '')
-WHITESEARCH_URL = os.environ.get('WHITESEARCH_URL', 'https://api.whitesearch.workers.dev/api')
+JITLER_TOKEN = '7M8wfVQlszWnbaaINN2ig7iA'
+JITLER_URL = 'https://api.jitler.top/search'
 
-# JITLER
-JITLER_TOKEN = os.environ.get('JITLER_TOKEN', '')
-JITLER_URL = os.environ.get('JITLER_URL', 'https://api.jitler.top/search')
+NIGHTSEARCH_KEY = 'sk_66beac29ce86f915b184a9ddde7aecbfc6177ab265cf5c1f579ce53219422234'
+NIGHTSEARCH_URL = 'https://nightsearch.life/api/search'
 
-# NIGHT SEARCH
-NIGHTSEARCH_KEY = os.environ.get('NIGHTSEARCH_KEY', '')
-NIGHTSEARCH_URL = os.environ.get('NIGHTSEARCH_URL', 'https://nightsearch.life/api/search')
+HUNTERHOW_API_KEY = 'd43597d5bc6033a21ba389e034080628fe2ecffd'
+HUNTERHOW_URL = 'https://api.hunter.how/search'
 
-# HUNTER.HOW
-HUNTERHOW_API_KEY = os.environ.get('HUNTERHOW_API_KEY', '')
-HUNTERHOW_URL = os.environ.get('HUNTERHOW_URL', 'https://api.hunter.how/search')
+HUNTER_API_KEY = 'd43597d5bc6033a21ba389e034080628fe2ecffd'
+HUNTER_URL = 'https://api.hunter.io/v2'
 
-# HUNTER.IO
-HUNTER_API_KEY = os.environ.get('HUNTER_API_KEY', '')
-HUNTER_URL = os.environ.get('HUNTER_URL', 'https://api.hunter.io/v2')
+NUMVERIFY_API_KEY = '45b6ab2f9ee0cf8acb0880d5dfe5ec5c'
+NUMVERIFY_URL = 'http://apilayer.net/api/validate'
 
-# NUMVERIFY
-NUMVERIFY_API_KEY = os.environ.get('NUMVERIFY_API_KEY', '')
-NUMVERIFY_URL = os.environ.get('NUMVERIFY_URL', 'http://apilayer.net/api/validate')
+LEAKCHECK_KEY = '49535f49545f5245414c4c595f4150495f4b4559'
+LEAKCHECK_URL = 'https://leakcheck.net/api/public'
 
-# LEAKCHECK
-LEAKCHECK_KEY = os.environ.get('LEAKCHECK_KEY', '')
-LEAKCHECK_URL = os.environ.get('LEAKCHECK_URL', 'https://leakcheck.net/api/public')
+SNUSBASE_KEY = 'sb5029dec66mht55m78fx8bsw6tm8a'
+SNUSBASE_URL = 'https://api.snusbase.com/v3/search'
 
-# SNUSBASE
-SNUSBASE_KEY = os.environ.get('SNUSBASE_KEY', '')
-SNUSBASE_URL = os.environ.get('SNUSBASE_URL', 'https://api.snusbase.com/v3/search')
+FUNSTAT_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIyMDMzMDI5NDc1IiwianRpIjoiODJmMjlmNzQtYmJlMi00ZGUwLWEwZDQtN2EzMDJhMWE5MDViIiwiZXhwIjoxODAxMDA4MzM4fQ.Mba4aX85YAMcaMLfhUBzXtCoNmEujfMe-6sGBbp3kT-T2SiLM_Ho0BBAFAQ8_C6Gz06PH9mAYhfBvlLSjb4oVd1Fm_vmb8MC-wuObU3qgfGrYdGzVF3ntJHv-LdNELq-jsqvQOY3jq9meso9dUoyj5SviDQWL6cvnRQ03kpHWxA'
 
-# FUNSTAT
-FUNSTAT_TOKEN = os.environ.get('FUNSTAT_TOKEN', '')
+VERIPHONE_KEY = 'A9A2A88762854D45888BA49E8F98509C'
+VERIPHONE_URL = 'https://api.veriphone.io/v2/verify'
 
-# VERIPHONE
-VERIPHONE_KEY = os.environ.get('VERIPHONE_KEY', '')
-VERIPHONE_URL = os.environ.get('VERIPHONE_URL', 'https://api.veriphone.io/v2/verify')
+IPGEO_KEY = '73d99145d2e948779263360bfeb67ecc'
+IPGEO_URL = 'https://api.ipgeolocation.io/ipgeo'
 
-# IPGEO
-IPGEO_KEY = os.environ.get('IPGEO_KEY', '')
-IPGEO_URL = os.environ.get('IPGEO_URL', 'https://api.ipgeolocation.io/ipgeo')
+OFDATA_KEY = 'KBnpz1CHKNngFXxK'
+OFDATA_URL = 'https://api.ofdata.ru/v2/search'
 
-# OFDATA
-OFDATA_KEY = os.environ.get('OFDATA_KEY', '')
-OFDATA_URL = os.environ.get('OFDATA_URL', 'https://api.ofdata.ru/v2/search')
+OMKAR_API_KEY = 'ok_ad50fb80682eff950d34e7a9b3a77c8c'
 
-# OMKAR
-OMKAR_API_KEY = os.environ.get('OMKAR_API_KEY', '')
+VK_TOKEN = 'vk1.a.WX465fcyCl3FoFXysIyBPjQYn4D4Cgz3SJAmX7mxXvQBMUzTjzkaZfA0Tt-FBRDuA4WYq7tvbO3TaqZbvdl3oAva367V8KP4AQUFI1kC3I8UnT687rM12Bv-d-Ax9FnXAeOTxMp8MTBUwqQ_6kH-1LAQIT7fgdzWaawG3CEOhe6Q5VSuzTrDFF0iWIrUAXIwT22_uN6XzH25tZCegI-AWQ'
 
-# VK
-VK_TOKEN = os.environ.get('VK_TOKEN', '')
+SMSC_LOGIN = 'kirahacker333'
+SMSC_PASSWORD = 'Zangar5050'
 
-# SMSC
-SMSC_LOGIN = os.environ.get('SMSC_LOGIN', '')
-SMSC_PASSWORD = os.environ.get('SMSC_PASSWORD', '')
-
-# ==================== РОТАТОРЫ ====================
-bigbase_keys = [k for k in [BIGBASE_KEY_1, BIGBASE_KEY_2] if k]
+bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2]
 bigbase_idx = 0
-infinity_tokens = [t for t in [INFINITY_TOKEN_1, INFINITY_TOKEN_2] if t]
+infinity_tokens = [INFINITY_TOKEN_1, INFINITY_TOKEN_2]
 infinity_idx = 0
 
 def get_bigbase_key():
     global bigbase_idx
-    if not bigbase_keys:
-        return ""
     key = bigbase_keys[bigbase_idx]
     bigbase_idx = (bigbase_idx + 1) % len(bigbase_keys)
     return key
 
 def get_infinity_token():
     global infinity_idx
-    if not infinity_tokens:
-        return ""
     token = infinity_tokens[infinity_idx]
     infinity_idx = (infinity_idx + 1) % len(infinity_tokens)
     return token
 
-# ==================== СКРЫТИЕ ====================
 def sanitize_bigbase(data):
     if isinstance(data, dict):
         for key, value in list(data.items()):
@@ -140,12 +111,8 @@ def sanitize_bigbase(data):
                         sanitize_bigbase(item)
     return data
 
-# ==================== ПОИСКОВЫЕ ФУНКЦИИ ====================
-
 def search_bigbase(query, search_type):
     key = get_bigbase_key()
-    if not key:
-        return {"source": "bigbase", "error": "Ключ не настроен"}
     try:
         headers = {"Authorization": key, "Content-Type": "application/json"}
         data = {"search": query, "page": 0}
@@ -164,8 +131,6 @@ def search_bigbase(query, search_type):
 
 def search_infinity(query, search_type):
     token = get_infinity_token()
-    if not token:
-        return {"source": "infinity", "error": "Ключ не настроен"}
     if search_type not in ["phone", "email", "fio"]:
         return {"source": "infinity", "error": "Тип не поддерживается"}
     try:
@@ -181,8 +146,6 @@ def search_infinity(query, search_type):
         return {"source": "infinity", "error": str(e)}
 
 def search_white_search(query, search_type):
-    if not WHITESEARCH_KEY:
-        return {"source": "white_search", "error": "Ключ не настроен"}
     type_map = {
         "phone": "/search/phone", "email": "/search/email",
         "telegram": "/search/telegram", "telegram_id": "/search/telegram",
@@ -225,8 +188,6 @@ def search_white_search(query, search_type):
         return {"source": "white_search", "error": str(e)}
 
 def search_jitler(query, search_type):
-    if not JITLER_TOKEN:
-        return {"source": "jitler", "error": "Ключ не настроен"}
     if search_type not in ["phone", "telegram", "telegram_id", "telegram_username", "vk"]:
         return {"source": "jitler", "error": "Jitler поддерживает только phone, telegram, vk"}
     type_map = {"phone": "number", "telegram": "sherlock", "telegram_id": "sherlock", "telegram_username": "sherlock", "vk": "vks"}
@@ -242,8 +203,6 @@ def search_jitler(query, search_type):
         return {"source": "jitler", "error": str(e)}
 
 def search_nightsearch(query, search_type):
-    if not NIGHTSEARCH_KEY:
-        return {"source": "nightsearch", "error": "Ключ не настроен"}
     type_map = {
         "phone": "phone", "email": "email", "fio": "fio",
         "passport": "passport", "inn": "inn", "snils": "snils",
@@ -273,8 +232,6 @@ def search_nightsearch(query, search_type):
         return {"source": "nightsearch", "error": str(e)}
 
 def search_hunterhow(query, search_type):
-    if not HUNTERHOW_API_KEY:
-        return {"source": "hunterhow", "error": "Ключ не настроен"}
     if search_type not in ["ip", "domain"]:
         return {"source": "hunterhow", "error": "Hunter.how поддерживает ip, domain"}
     try:
@@ -309,8 +266,6 @@ def search_hunterhow(query, search_type):
         return {"source": "hunterhow", "error": str(e)}
 
 def search_hunter(query, search_type):
-    if not HUNTER_API_KEY:
-        return {"source": "hunter", "error": "Ключ не настроен"}
     if search_type not in ["domain", "company", "email"]:
         return {"source": "hunter", "error": "Hunter поддерживает domain, company, email"}
     try:
@@ -332,8 +287,6 @@ def search_hunter(query, search_type):
         return {"source": "hunter", "error": str(e)}
 
 def search_numverify(phone):
-    if not NUMVERIFY_API_KEY:
-        return {"source": "numverify", "error": "Ключ не настроен"}
     try:
         phone_clean = re.sub(r'\D', '', phone)
         params = {"access_key": NUMVERIFY_API_KEY, "number": phone_clean, "format": 1}
@@ -348,8 +301,6 @@ def search_numverify(phone):
         return {"source": "numverify", "error": str(e)}
 
 def search_leakcheck(query, search_type="email"):
-    if not LEAKCHECK_KEY:
-        return {"source": "leakcheck", "error": "Ключ не настроен"}
     try:
         r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=10)
         if r.status_code == 200:
@@ -359,8 +310,6 @@ def search_leakcheck(query, search_type="email"):
         return {"source": "leakcheck", "error": str(e)}
 
 def search_snusbase(query, search_type):
-    if not SNUSBASE_KEY:
-        return {"source": "snusbase", "error": "Ключ не настроен"}
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Тип не поддерживается"}
     try:
@@ -377,8 +326,6 @@ def search_snusbase(query, search_type):
         return {"source": "snusbase", "error": str(e)}
 
 def search_funstat(query, search_type):
-    if not FUNSTAT_TOKEN:
-        return {"source": "funstat", "error": "Ключ не настроен"}
     if search_type not in ["telegram", "telegram_id"]:
         return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram ID"}
     if not query.isdigit():
@@ -394,8 +341,6 @@ def search_funstat(query, search_type):
         return {"source": "funstat", "error": str(e)}
 
 def search_veriphone(phone):
-    if not VERIPHONE_KEY:
-        return {"source": "veriphone", "error": "Ключ не настроен"}
     try:
         phone_clean = re.sub(r'\D', '', phone)
         r = requests.get(VERIPHONE_URL, params={"phone": phone_clean, "key": VERIPHONE_KEY}, timeout=10)
@@ -407,8 +352,6 @@ def search_veriphone(phone):
         return {"source": "veriphone", "error": str(e)}
 
 def search_ipgeo(ip):
-    if not IPGEO_KEY:
-        return {"source": "ipgeo", "error": "Ключ не настроен"}
     try:
         r = requests.get(IPGEO_URL, params={"apiKey": IPGEO_KEY, "ip": ip}, timeout=10)
         if r.status_code == 200:
@@ -418,8 +361,6 @@ def search_ipgeo(ip):
         return {"source": "ipgeo", "error": str(e)}
 
 def search_ofdata(query, search_type):
-    if not OFDATA_KEY:
-        return {"source": "ofdata", "error": "Ключ не настроен"}
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "Тип не поддерживается"}
     try:
@@ -437,8 +378,6 @@ def search_ofdata(query, search_type):
         return {"source": "ofdata", "error": str(e)}
 
 def search_omkar_phone(phone):
-    if not OMKAR_API_KEY:
-        return {"source": "omkar_phone", "error": "Ключ не настроен"}
     try:
         url = "https://carrier-lookup-api.omkar.cloud/lookup"
         params = {"phone": phone}
@@ -451,8 +390,6 @@ def search_omkar_phone(phone):
         return {"source": "omkar_phone", "error": str(e)}
 
 def search_omkar_email(email):
-    if not OMKAR_API_KEY:
-        return {"source": "omkar_email", "error": "Ключ не настроен"}
     try:
         url = "https://email-verification-api.omkar.cloud/verify"
         params = {"email": email}
@@ -465,8 +402,6 @@ def search_omkar_email(email):
         return {"source": "omkar_email", "error": str(e)}
 
 def search_omkar_reviews(query):
-    if not OMKAR_API_KEY:
-        return {"source": "omkar_reviews", "error": "Ключ не настроен"}
     try:
         url = "https://travel-data-api.omkar.cloud/travel/reviews"
         r = requests.get(url, params={"query": query}, headers={"API-Key": OMKAR_API_KEY}, timeout=30)
@@ -481,8 +416,6 @@ def search_omkar_reviews(query):
         return {"source": "omkar_reviews", "error": str(e)}
 
 def search_vk(user_id):
-    if not VK_TOKEN:
-        return {"source": "vk", "error": "Ключ не настроен"}
     try:
         url = "https://api.vk.com/method/users.get"
         params = {"access_token": VK_TOKEN, "user_ids": user_id, "v": "5.131", "fields": "first_name,last_name,domain,followers_count,is_closed,sex,bdate,city,country,photo_max_orig,status"}
@@ -649,7 +582,6 @@ def search_dorks(phone):
     dorks = [f'"{phone_clean}"', f'"{phone_clean}" filetype:pdf', f'"{phone_clean}" site:vk.com', f'"{phone_clean}" site:avito.ru', f'"{phone_clean}" site:ok.ru', f'"{phone_clean}" "ИНН"', f'"{phone_clean}" "паспорт"', f'"{phone_clean}" "адрес"']
     return {"source": "dorks", "data": {"phone": phone_clean, "dorks": [f"https://www.google.com/search?q={quote(d)}" for d in dorks]}}
 
-# ==================== ОПРЕДЕЛЕНИЕ ТИПА ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
     query = query.strip()
     if not query:
@@ -707,9 +639,6 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
 def check_api_key():
     return request.headers.get('X-API-Key') == MASTER_KEY
 
-# ============================================
-# ГЛАВНЫЙ ЭНДПОИНТ
-# ============================================
 @app.route('/search', methods=['POST'])
 def search():
     if not check_api_key():
@@ -731,129 +660,98 @@ def search():
 
     result = {"query": query, "type": search_type, "timestamp": datetime.now().isoformat(), "sources": []}
 
-    # BIGBASE
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         result["sources"].append(search_bigbase(query, search_type))
 
-    # INFINITY
     if search_type in ["phone", "email", "fio"]:
         result["sources"].append(search_infinity(query, search_type))
 
-    # WHITE SEARCH
     if search_type in ["phone", "email", "fio", "telegram", "telegram_id", "telegram_username", "vk", "ip", "snils", "inn", "passport", "auto", "vin"]:
         result["sources"].append(search_white_search(query, search_type))
 
-    # JITLER
     if search_type in ["phone", "telegram", "telegram_id", "telegram_username", "vk"]:
         result["sources"].append(search_jitler(query, search_type))
 
-    # NIGHT SEARCH
     if search_type in ["phone", "email", "fio", "passport", "inn", "snils", "vk", "telegram", "telegram_id", "telegram_username", "auto", "vin", "ip", "ogrn", "username", "domain", "card", "bank"]:
         result["sources"].append(search_nightsearch(query, search_type))
 
-    # HUNTER.HOW
     if search_type in ["ip", "domain"]:
         result["sources"].append(search_hunterhow(query, search_type))
 
-    # HUNTER.IO
     if search_type in ["domain", "company", "email"]:
         result["sources"].append(search_hunter(query, search_type))
 
-    # NUMVERIFY
     if search_type == "phone":
         result["sources"].append(search_numverify(query))
 
-    # LEAKCHECK
     if search_type in ["email", "phone"]:
         result["sources"].append(search_leakcheck(query, search_type))
 
-    # SNUSBASE
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
 
-    # FUNSTAT
     if search_type in ["telegram", "telegram_id"] and query.isdigit():
         result["sources"].append(search_funstat(query, search_type))
 
-    # VERIPHONE
     if search_type == "phone":
         result["sources"].append(search_veriphone(query))
 
-    # IPGEO
     if search_type == "ip":
         result["sources"].append(search_ipgeo(query))
 
-    # OFDATA
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
 
-    # OMKAR PHONE
     if search_type == "phone":
         result["sources"].append(search_omkar_phone(query))
 
-    # OMKAR EMAIL
     if search_type == "email":
         result["sources"].append(search_omkar_email(query))
 
-    # OMKAR REVIEWS
     if search_type in ["fio", "phone", "username"]:
         result["sources"].append(search_omkar_reviews(query))
 
-    # VK
     if search_type == "vk":
         result["sources"].append(search_vk(query))
 
-    # INTELX
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
 
-    # WHATSAPP
     if search_type == "phone":
         result["sources"].append(search_whatsapp(query))
 
-    # ODNOKLASSNIKI
     if search_type == "phone":
         result["sources"].append(search_odnoklassniki(query))
 
-    # TELEGRAM
     if search_type == "username":
         result["sources"].append(search_telegram(query))
 
-    # TIKTOK
     if search_type == "username":
         result["sources"].append(search_tiktok(query))
 
-    # BIN
     if re.match(r'^\d{6,8}$', query):
         result["sources"].append(search_bin(query))
 
-    # WHOIS
     if search_type == "domain":
         result["sources"].append(search_whois(query))
 
-    # DNS
     if search_type == "domain":
         result["sources"].append(search_dns(query))
 
-    # SUBDOMAINS
     if search_type == "domain":
         result["sources"].append(search_subdomains(query))
 
-    # HEADERS
     if search_type == "domain":
         result["sources"].append(search_headers(query))
 
-    # SOCIAL LINKS
     if search_type == "phone":
         result["sources"].append(search_social_links(query))
 
-    # DORKS
     if search_type == "phone":
         result["sources"].append(search_dorks(query))
 
     return jsonify(result)
 
-# ============================================
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
