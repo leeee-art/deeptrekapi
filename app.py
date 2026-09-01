@@ -13,15 +13,13 @@ import os
 from datetime import datetime
 from typing import Tuple, Optional
 from urllib.parse import unquote, quote
-from funstat_api import FunstatClient
 
 app = Flask(__name__)
 CORS(app)
 
 MASTER_KEY = 'deeptrek_fjnrndhfrb2947472992gdvsbdh'
 
-BIGBASE_KEY_1 = 'hS9I51yASMt5yGj8S9k1jbbN6HmA38xA'
-BIGBASE_KEY_2 = 'IWTtHHz1lg_5XbYNHBWjiAtPiRrzpESM'
+BIGBASE_KEY = 'MkJm1j8F1AyyhXtzY9fu6JALe1S72owZ'
 BIGBASE_URL = 'https://bigbase.top/api/search'
 
 INFINITY_TOKEN_1 = 'Bjm928HUcvsw923ZMBX19gd110FWSZgd'
@@ -34,7 +32,7 @@ WHITESEARCH_URL = 'https://api.whitesearch.workers.dev/api'
 JITLER_TOKEN = '7M8wfVQlszWnbaaINN2ig7iA'
 JITLER_URL = 'https://api.jitler.top/search'
 
-NIGHTSEARCH_KEY = 'sk_66beac29ce86f915b184a9ddde7aecbfc6177ab265cf5c1f579ce53219422234'
+NIGHTSEARCH_KEY = 'sk_adf1c3969235df867481065a015ad3aba4217251ec50dace7efaff645c1ac005'
 NIGHTSEARCH_URL = 'https://nightsearch.life/api/search'
 
 HUNTERHOW_API_KEY = 'd43597d5bc6033a21ba389e034080628fe2ecffd'
@@ -52,8 +50,6 @@ LEAKCHECK_URL = 'https://leakcheck.net/api/public'
 SNUSBASE_KEY = 'sb5029dec66mht55m78fx8bsw6tm8a'
 SNUSBASE_URL = 'https://api.snusbase.com/v3/search'
 
-FUNSTAT_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIyMDMzMDI5NDc1IiwianRpIjoiODJmMjlmNzQtYmJlMi00ZGUwLWEwZDQtN2EzMDJhMWE5MDViIiwiZXhwIjoxODAxMDA4MzM4fQ.Mba4aX85YAMcaMLfhUBzXtCoNmEujfMe-6sGBbp3kT-T2SiLM_Ho0BBAFAQ8_C6Gz06PH9mAYhfBvlLSjb4oVd1Fm_vmb8MC-wuObU3qgfGrYdGzVF3ntJHv-LdNELq-jsqvQOY3jq9meso9dUoyj5SviDQWL6cvnRQ03kpHWxA'
-
 VERIPHONE_KEY = 'A9A2A88762854D45888BA49E8F98509C'
 VERIPHONE_URL = 'https://api.veriphone.io/v2/verify'
 
@@ -67,16 +63,8 @@ OMKAR_API_KEY = 'ok_ad50fb80682eff950d34e7a9b3a77c8c'
 
 VK_TOKEN = 'vk1.a.WX465fcyCl3FoFXysIyBPjQYn4D4Cgz3SJAmX7mxXvQBMUzTjzkaZfA0Tt-FBRDuA4WYq7tvbO3TaqZbvdl3oAva367V8KP4AQUFI1kC3I8UnT687rM12Bv-d-Ax9FnXAeOTxMp8MTBUwqQ_6kH-1LAQIT7fgdzWaawG3CEOhe6Q5VSuzTrDFF0iWIrUAXIwT22_uN6XzH25tZCegI-AWQ'
 
-bigbase_keys = [BIGBASE_KEY_1, BIGBASE_KEY_2]
-bigbase_idx = 0
 infinity_tokens = [INFINITY_TOKEN_1, INFINITY_TOKEN_2]
 infinity_idx = 0
-
-def get_bigbase_key():
-    global bigbase_idx
-    key = bigbase_keys[bigbase_idx]
-    bigbase_idx = (bigbase_idx + 1) % len(bigbase_keys)
-    return key
 
 def get_infinity_token():
     global infinity_idx
@@ -109,16 +97,14 @@ def sanitize_bigbase(data):
     return data
 
 def search_bigbase(query, search_type):
-    key = get_bigbase_key()
     try:
-        headers = {"Authorization": key, "Content-Type": "application/json"}
+        headers = {"Authorization": BIGBASE_KEY, "Content-Type": "application/json"}
         data = {"search": query, "page": 0}
         r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=60)
         if r.status_code == 200:
             result = r.json()
             if result.get("error"):
                 return {"source": "bigbase", "error": result["error"]}
-            result = sanitize_bigbase(result)
             if result.get("records") and result.get("count_result", 0) == 0:
                 result["count_result"] = len(result["records"])
             return {"source": "bigbase", "data": result}
@@ -326,21 +312,6 @@ def search_snusbase(query, search_type):
         return {"source": "snusbase", "error": f"HTTP {r.status_code}"}
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
-
-def search_funstat(query, search_type):
-    if search_type not in ["telegram", "telegram_id"]:
-        return {"source": "funstat", "error": "Funstat поддерживает только поиск по Telegram ID"}
-    if not query.isdigit():
-        return {"source": "funstat", "error": "Funstat ищет только по числовому ID"}
-    try:
-        client = FunstatClient(FUNSTAT_TOKEN)
-        stats = client.stats_min(int(query))
-        if stats.success:
-            data = stats.data
-            return {"source": "funstat", "data": {"id": data.id, "first_name": data.first_name, "last_name": data.last_name, "is_bot": data.is_bot, "is_active": data.is_active, "first_msg_date": data.first_msg_date, "last_msg_date": data.last_msg_date, "total_msg_count": data.total_msg_count, "msg_in_groups_count": data.msg_in_groups_count, "adm_in_groups": data.adm_in_groups, "total_groups": data.total_groups, "usernames_count": data.usernames_count, "names_count": data.names_count}}
-        return {"source": "funstat", "error": "Пользователь не найден"}
-    except Exception as e:
-        return {"source": "funstat", "error": str(e)}
 
 def search_veriphone(phone):
     try:
@@ -692,9 +663,6 @@ def search():
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
 
-    if search_type in ["telegram", "telegram_id"] and query.isdigit():
-        result["sources"].append(search_funstat(query, search_type))
-
     if search_type == "phone":
         result["sources"].append(search_veriphone(query))
 
@@ -764,16 +732,16 @@ def index():
         "name": "DeepTrek API",
         "version": "24.0",
         "sources": [
-            "BigBase (2 ключа)", "Infinity (2 ключа)", "White Search",
+            "BigBase", "Infinity (2 ключа)", "White Search",
             "Jitler", "Night Search", "Hunter.how", "Hunter.io",
-            "Numverify", "LeakCheck", "Snusbase", "Funstat",
+            "Numverify", "LeakCheck", "Snusbase",
             "Veriphone", "IpGeo", "OFDATA", "Omkar Phone",
             "Omkar Email", "Omkar Reviews", "VK API",
             "IntelX", "WhatsApp", "Odnoklassniki", "Telegram",
             "TikTok", "BIN", "WHOIS", "DNS", "Subdomains",
             "Headers", "Social Links", "Google Dorks"
         ],
-        "total_sources": 30
+        "total_sources": 29
     })
 
 if __name__ == '__main__':
