@@ -19,8 +19,14 @@ CORS(app)
 
 MASTER_KEY = 'deeptrek_fjnrndhfrb2947472992gdvsbdh'
 
+DEPSEARCH_TOKEN = 'OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z'
+DEPSEARCH_URL = 'https://api.depsearch.sbs/quest'
+
 BIGBASE_KEY = 'MkJm1j8F1AyyhXtzY9fu6JALe1S72owZ'
 BIGBASE_URL = 'https://bigbase.top/api/search'
+
+NIGHTSEARCH_KEY = 'sk_adf1c3969235df867481065a015ad3aba4217251ec50dace7efaff645c1ac005'
+NIGHTSEARCH_URL = 'https://nightsearch.life/api/search'
 
 INFINITY_TOKEN_1 = 'Bjm928HUcvsw923ZMBX19gd110FWSZgd'
 INFINITY_TOKEN_2 = 'QoNm98UeMLIqNjZ198snm98AdGvhqA88'
@@ -31,9 +37,6 @@ WHITESEARCH_URL = 'https://api.whitesearch.workers.dev/api'
 
 JITLER_TOKEN = '7M8wfVQlszWnbaaINN2ig7iA'
 JITLER_URL = 'https://api.jitler.top/search'
-
-NIGHTSEARCH_KEY = 'sk_adf1c3969235df867481065a015ad3aba4217251ec50dace7efaff645c1ac005'
-NIGHTSEARCH_URL = 'https://nightsearch.life/api/search'
 
 HUNTERHOW_API_KEY = 'd43597d5bc6033a21ba389e034080628fe2ecffd'
 HUNTERHOW_URL = 'https://api.hunter.how/search'
@@ -95,6 +98,23 @@ def sanitize_bigbase(data):
                     if isinstance(item, dict):
                         sanitize_bigbase(item)
     return data
+
+def search_depsearch(query, search_type):
+    type_map = {"phone": "phone", "email": "email", "fio": "name", "vk": "vk", "telegram": "telegram"}
+    if search_type not in type_map:
+        return {"source": "depsearch", "error": "Тип не поддерживается"}
+    try:
+        params = {"quest": query, "type": type_map[search_type], "token": DEPSEARCH_TOKEN}
+        r = requests.get(DEPSEARCH_URL, params=params, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            if "error" not in data:
+                results = data.get("results", [])
+                return {"source": "depsearch", "data": {"total": len(results), "results": results[:20]}}
+            return {"source": "depsearch", "error": data.get("error")}
+        return {"source": "depsearch", "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"source": "depsearch", "error": str(e)}
 
 def search_bigbase(query, search_type):
     try:
@@ -633,6 +653,9 @@ def search():
 
     result = {"query": query, "type": search_type, "timestamp": datetime.now().isoformat(), "sources": []}
 
+    if search_type in ["phone", "email", "fio", "vk", "telegram"]:
+        result["sources"].append(search_depsearch(query, search_type))
+
     if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
         result["sources"].append(search_bigbase(query, search_type))
 
@@ -730,9 +753,9 @@ def health():
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "24.0",
+        "version": "25.0",
         "sources": [
-            "BigBase", "Infinity (2 ключа)", "White Search",
+            "DepSearch", "BigBase", "Infinity (2 ключа)", "White Search",
             "Jitler", "Night Search", "Hunter.how", "Hunter.io",
             "Numverify", "LeakCheck", "Snusbase",
             "Veriphone", "IpGeo", "OFDATA", "Omkar Phone",
@@ -741,7 +764,7 @@ def index():
             "TikTok", "BIN", "WHOIS", "DNS", "Subdomains",
             "Headers", "Social Links", "Google Dorks"
         ],
-        "total_sources": 29
+        "total_sources": 30
     })
 
 if __name__ == '__main__':
