@@ -9,7 +9,6 @@ import io
 import whois
 import dns.resolver
 import base64
-import os
 from datetime import datetime
 from typing import Tuple, Optional
 from urllib.parse import unquote, quote
@@ -19,52 +18,68 @@ CORS(app)
 
 MASTER_KEY = 'deeptrek_fjnrndhfrb2947472992gdvsbdh'
 
-DEPSEARCH_TOKEN = 'OsMTcjyHTRtfABnWA4V3d12SYKVIYE8z'
-DEPSEARCH_URL = 'https://api.depsearch.sbs/quest'
+# ==================== GLOOM (заменяет BigBase + DepSearch) ====================
+GLOOM_URL = "https://gloomapi.bothost.tech/search"
+GLOOM_TOKEN = "plut_kCYREkorsBmPb7xoW4pEws2Thw8qHU0L0wxgo4xTPzs"
 
-BIGBASE_KEY = 'MkJm1j8F1AyyhXtzY9fu6JALe1S72owZ'
-BIGBASE_URL = 'https://bigbase.top/api/search'
-
-NIGHTSEARCH_KEY = 'sk_adf1c3969235df867481065a015ad3aba4217251ec50dace7efaff645c1ac005'
-NIGHTSEARCH_URL = 'https://nightsearch.life/api/search'
-
+# ==================== INFINITY ====================
 INFINITY_TOKEN_1 = 'Bjm928HUcvsw923ZMBX19gd110FWSZgd'
 INFINITY_TOKEN_2 = 'QoNm98UeMLIqNjZ198snm98AdGvhqA88'
 INFINITY_URL = 'https://infinity-search.fun/find.php'
 
+# ==================== WHITE SEARCH ====================
 WHITESEARCH_KEY = 'WS-PUBLIC-9X7K-2M4P'
 WHITESEARCH_URL = 'https://api.whitesearch.workers.dev/api'
 
-JITLER_TOKEN = '7M8wfVQlszWnbaaINN2ig7iA'
+# ==================== JITLER ====================
+JITLER_TOKEN = 'n7C9rwJgka8uREoMusjSx52L'
 JITLER_URL = 'https://api.jitler.top/search'
 
+# ==================== NIGHT SEARCH ====================
+NIGHTSEARCH_KEY = 'sk_adf1c3969235df867481065a015ad3aba4217251ec50dace7efaff645c1ac005'
+NIGHTSEARCH_URL = 'https://nightsearch.life/api/search'
+
+# ==================== HUNTER.HOW ====================
 HUNTERHOW_API_KEY = 'd43597d5bc6033a21ba389e034080628fe2ecffd'
 HUNTERHOW_URL = 'https://api.hunter.how/search'
 
+# ==================== HUNTER.IO ====================
 HUNTER_API_KEY = 'd43597d5bc6033a21ba389e034080628fe2ecffd'
 HUNTER_URL = 'https://api.hunter.io/v2'
 
+# ==================== NUMVERIFY ====================
 NUMVERIFY_API_KEY = '45b6ab2f9ee0cf8acb0880d5dfe5ec5c'
 NUMVERIFY_URL = 'http://apilayer.net/api/validate'
 
-LEAKCHECK_KEY = '49535f49545f5245414c4c595f4150495f4b4559'
-LEAKCHECK_URL = 'https://leakcheck.net/api/public'
+# ==================== LEAKCHECK ====================
+LEAKCHECK_KEY = 'd36864926b6e998846d9eb9499e0f2e6546a9541'
+LEAKCHECK_URL = 'https://leakcheck.io/api/v2/query'
 
+# ==================== SNUSBASE ====================
 SNUSBASE_KEY = 'sb5029dec66mht55m78fx8bsw6tm8a'
 SNUSBASE_URL = 'https://api.snusbase.com/v3/search'
 
+# ==================== VERIPHONE ====================
 VERIPHONE_KEY = 'A9A2A88762854D45888BA49E8F98509C'
 VERIPHONE_URL = 'https://api.veriphone.io/v2/verify'
 
+# ==================== IPGEO ====================
 IPGEO_KEY = '73d99145d2e948779263360bfeb67ecc'
 IPGEO_URL = 'https://api.ipgeolocation.io/ipgeo'
 
+# ==================== OFDATA ====================
 OFDATA_KEY = 'KBnpz1CHKNngFXxK'
 OFDATA_URL = 'https://api.ofdata.ru/v2/search'
 
+# ==================== OMKAR ====================
 OMKAR_API_KEY = 'ok_ad50fb80682eff950d34e7a9b3a77c8c'
 
+# ==================== VK ====================
 VK_TOKEN = 'vk1.a.WX465fcyCl3FoFXysIyBPjQYn4D4Cgz3SJAmX7mxXvQBMUzTjzkaZfA0Tt-FBRDuA4WYq7tvbO3TaqZbvdl3oAva367V8KP4AQUFI1kC3I8UnT687rM12Bv-d-Ax9FnXAeOTxMp8MTBUwqQ_6kH-1LAQIT7fgdzWaawG3CEOhe6Q5VSuzTrDFF0iWIrUAXIwT22_uN6XzH25tZCegI-AWQ'
+
+# ==================== INTELX ====================
+INTELX_API_KEY = '9df816e5-f2a1-4b3c-8d7e-6f5a4b3c2d1e'
+INTELX_HOST = '2.intelx.io'
 
 infinity_tokens = [INFINITY_TOKEN_1, INFINITY_TOKEN_2]
 infinity_idx = 0
@@ -75,63 +90,53 @@ def get_infinity_token():
     infinity_idx = (infinity_idx + 1) % len(infinity_tokens)
     return token
 
-def sanitize_bigbase(data):
-    if isinstance(data, dict):
-        for key, value in list(data.items()):
-            if key == "user" and isinstance(value, dict):
-                if "login" in value:
-                    value["login"] = "***"
-                if "api_token" in value:
-                    value["api_token"] = "***"
-                if "referral_url" in value:
-                    value["referral_url"] = "***"
-            elif key == "login":
-                data[key] = "***"
-            elif key == "api_token":
-                data[key] = "***"
-            elif key == "referral_url":
-                data[key] = "***"
-            elif isinstance(value, dict):
-                sanitize_bigbase(value)
-            elif isinstance(value, list):
-                for item in value:
-                    if isinstance(item, dict):
-                        sanitize_bigbase(item)
-    return data
-
-def search_depsearch(query, search_type):
-    type_map = {"phone": "phone", "email": "email", "fio": "name", "vk": "vk", "telegram": "telegram"}
+# ==================== GLOOM ====================
+def search_gloom(query, search_type):
+    type_map = {
+        "phone": "phone",
+        "email": "email",
+        "fio": "fio",
+        "vk": "vk",
+        "telegram": "telegram",
+        "telegram_id": "telegram",
+        "telegram_username": "telegram",
+        "username": "username",
+        "ip": "ip",
+        "passport": "passport",
+        "inn": "inn",
+        "snils": "snils",
+        "card": "card",
+    }
+    
     if search_type not in type_map:
-        return {"source": "depsearch", "error": "Тип не поддерживается"}
+        return {"source": "gloom", "error": f"Тип {search_type} не поддерживается"}
+    
     try:
-        params = {"quest": query, "type": type_map[search_type], "token": DEPSEARCH_TOKEN}
-        r = requests.get(DEPSEARCH_URL, params=params, timeout=30)
+        headers = {
+            "Authorization": f"Bearer {GLOOM_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        payload = {type_map[search_type]: query}
+        
+        r = requests.post(GLOOM_URL, headers=headers, json=payload, timeout=60)
+        
         if r.status_code == 200:
             data = r.json()
-            if "error" not in data:
-                results = data.get("results", [])
-                return {"source": "depsearch", "data": {"total": len(results), "results": results[:20]}}
-            return {"source": "depsearch", "error": data.get("error")}
-        return {"source": "depsearch", "error": f"HTTP {r.status_code}"}
+            if not data.get("success"):
+                return {"source": "gloom", "error": "Ничего не найдено"}
+            return {"source": "gloom", "data": data}
+        elif r.status_code == 401:
+            return {"source": "gloom", "error": "Неверный токен"}
+        elif r.status_code == 422:
+            return {"source": "gloom", "error": "Формат запроса неверен"}
+        elif r.status_code == 429:
+            return {"source": "gloom", "error": "Лимит запросов"}
+        else:
+            return {"source": "gloom", "error": f"HTTP {r.status_code}"}
     except Exception as e:
-        return {"source": "depsearch", "error": str(e)}
+        return {"source": "gloom", "error": str(e)}
 
-def search_bigbase(query, search_type):
-    try:
-        headers = {"Authorization": BIGBASE_KEY, "Content-Type": "application/json"}
-        data = {"search": query, "page": 0}
-        r = requests.post(BIGBASE_URL, headers=headers, json=data, timeout=60)
-        if r.status_code == 200:
-            result = r.json()
-            if result.get("error"):
-                return {"source": "bigbase", "error": result["error"]}
-            if result.get("records") and result.get("count_result", 0) == 0:
-                result["count_result"] = len(result["records"])
-            return {"source": "bigbase", "data": result}
-        return {"source": "bigbase", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"source": "bigbase", "error": str(e)}
-
+# ==================== INFINITY ====================
 def search_infinity(query, search_type):
     token = get_infinity_token()
     if search_type not in ["phone", "email", "fio"]:
@@ -148,6 +153,7 @@ def search_infinity(query, search_type):
     except Exception as e:
         return {"source": "infinity", "error": str(e)}
 
+# ==================== WHITE SEARCH ====================
 def search_white_search(query, search_type):
     type_map = {
         "phone": "/search/phone", "email": "/search/email",
@@ -190,6 +196,7 @@ def search_white_search(query, search_type):
     except Exception as e:
         return {"source": "white_search", "error": str(e)}
 
+# ==================== JITLER ====================
 def search_jitler(query, search_type):
     if search_type not in ["phone", "telegram", "telegram_id", "telegram_username", "vk"]:
         return {"source": "jitler", "error": "Jitler поддерживает только phone, telegram, vk"}
@@ -205,6 +212,7 @@ def search_jitler(query, search_type):
     except Exception as e:
         return {"source": "jitler", "error": str(e)}
 
+# ==================== NIGHT SEARCH ====================
 def search_nightsearch(query, search_type):
     type_map = {
         "phone": "phone", "email": "email", "fio": "fio",
@@ -239,6 +247,7 @@ def search_nightsearch(query, search_type):
     except Exception as e:
         return {"source": "nightsearch", "error": str(e)}
 
+# ==================== HUNTER.HOW ====================
 def search_hunterhow(query, search_type):
     if search_type not in ["ip", "domain"]:
         return {"source": "hunterhow", "error": "Hunter.how поддерживает ip, domain"}
@@ -273,6 +282,7 @@ def search_hunterhow(query, search_type):
     except Exception as e:
         return {"source": "hunterhow", "error": str(e)}
 
+# ==================== HUNTER.IO ====================
 def search_hunter(query, search_type):
     if search_type not in ["domain", "company", "email"]:
         return {"source": "hunter", "error": "Hunter поддерживает domain, company, email"}
@@ -294,6 +304,7 @@ def search_hunter(query, search_type):
     except Exception as e:
         return {"source": "hunter", "error": str(e)}
 
+# ==================== NUMVERIFY ====================
 def search_numverify(phone):
     try:
         phone_clean = re.sub(r'\D', '', phone)
@@ -308,6 +319,7 @@ def search_numverify(phone):
     except Exception as e:
         return {"source": "numverify", "error": str(e)}
 
+# ==================== LEAKCHECK ====================
 def search_leakcheck(query, search_type="email"):
     try:
         r = requests.get(LEAKCHECK_URL, params={"key": LEAKCHECK_KEY, "check": query}, timeout=30)
@@ -317,6 +329,7 @@ def search_leakcheck(query, search_type="email"):
     except Exception as e:
         return {"source": "leakcheck", "error": str(e)}
 
+# ==================== SNUSBASE ====================
 def search_snusbase(query, search_type):
     if search_type not in ["email", "fio", "ip"]:
         return {"source": "snusbase", "error": "Тип не поддерживается"}
@@ -333,6 +346,7 @@ def search_snusbase(query, search_type):
     except Exception as e:
         return {"source": "snusbase", "error": str(e)}
 
+# ==================== VERIPHONE ====================
 def search_veriphone(phone):
     try:
         phone_clean = re.sub(r'\D', '', phone)
@@ -344,6 +358,7 @@ def search_veriphone(phone):
     except Exception as e:
         return {"source": "veriphone", "error": str(e)}
 
+# ==================== IPGEO ====================
 def search_ipgeo(ip):
     try:
         r = requests.get(IPGEO_URL, params={"apiKey": IPGEO_KEY, "ip": ip}, timeout=30)
@@ -353,6 +368,7 @@ def search_ipgeo(ip):
     except Exception as e:
         return {"source": "ipgeo", "error": str(e)}
 
+# ==================== OFDATA ====================
 def search_ofdata(query, search_type):
     if search_type not in ["inn", "ogrn", "fio", "company"]:
         return {"source": "ofdata", "error": "Тип не поддерживается"}
@@ -370,6 +386,7 @@ def search_ofdata(query, search_type):
     except Exception as e:
         return {"source": "ofdata", "error": str(e)}
 
+# ==================== OMKAR PHONE ====================
 def search_omkar_phone(phone):
     try:
         url = "https://carrier-lookup-api.omkar.cloud/lookup"
@@ -382,6 +399,7 @@ def search_omkar_phone(phone):
     except Exception as e:
         return {"source": "omkar_phone", "error": str(e)}
 
+# ==================== OMKAR EMAIL ====================
 def search_omkar_email(email):
     try:
         url = "https://email-verification-api.omkar.cloud/verify"
@@ -394,6 +412,7 @@ def search_omkar_email(email):
     except Exception as e:
         return {"source": "omkar_email", "error": str(e)}
 
+# ==================== OMKAR REVIEWS ====================
 def search_omkar_reviews(query):
     try:
         url = "https://travel-data-api.omkar.cloud/travel/reviews"
@@ -408,6 +427,7 @@ def search_omkar_reviews(query):
     except Exception as e:
         return {"source": "omkar_reviews", "error": str(e)}
 
+# ==================== VK ====================
 def search_vk(user_id):
     try:
         url = "https://api.vk.com/method/users.get"
@@ -422,6 +442,7 @@ def search_vk(user_id):
     except Exception as e:
         return {"source": "vk", "error": str(e)}
 
+# ==================== INTELX ====================
 def search_intelx(phone):
     phone_clean = re.sub(r'\D', '', phone)
     if len(phone_clean) < 8:
@@ -450,6 +471,7 @@ def search_intelx(phone):
     except Exception as e:
         return {"source": "intelx", "error": str(e)}
 
+# ==================== WHATSAPP ====================
 def search_whatsapp(phone):
     phone_clean = re.sub(r'\D', '', phone)
     if phone_clean.startswith('8'):
@@ -464,6 +486,7 @@ def search_whatsapp(phone):
     except Exception as e:
         return {"source": "whatsapp", "error": str(e)}
 
+# ==================== ODNOKLASSNIKI ====================
 def search_odnoklassniki(phone):
     phone_clean = re.sub(r'\D', '', phone)
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -479,6 +502,7 @@ def search_odnoklassniki(phone):
     except Exception as e:
         return {"source": "odnoklassniki", "error": str(e)}
 
+# ==================== TELEGRAM ====================
 def search_telegram(username):
     username = username.replace("@", "").strip()
     try:
@@ -490,6 +514,7 @@ def search_telegram(username):
     except Exception as e:
         return {"source": "telegram", "error": str(e)}
 
+# ==================== TIKTOK ====================
 def search_tiktok(username):
     username = username.replace('@', '').strip()
     url = f"https://www.tiktok.com/@{username}"
@@ -506,6 +531,7 @@ def search_tiktok(username):
     except Exception as e:
         return {"source": "tiktok", "error": str(e)}
 
+# ==================== BIN ====================
 def search_bin(bin_number):
     bin_number = bin_number[:6]
     try:
@@ -517,6 +543,7 @@ def search_bin(bin_number):
     except Exception as e:
         return {"source": "bin", "error": str(e)}
 
+# ==================== WHOIS ====================
 def search_whois(domain):
     try:
         w = whois.whois(domain)
@@ -524,6 +551,7 @@ def search_whois(domain):
     except Exception as e:
         return {"source": "whois", "error": str(e)}
 
+# ==================== DNS ====================
 def search_dns(domain):
     records = {}
     try:
@@ -537,6 +565,7 @@ def search_dns(domain):
     except Exception as e:
         return {"source": "dns", "error": str(e)}
 
+# ==================== SUBDOMAINS ====================
 def search_subdomains(domain):
     try:
         url = f"https://crt.sh/?q=%25.{domain}&output=json"
@@ -555,6 +584,7 @@ def search_subdomains(domain):
     except Exception as e:
         return {"source": "subdomains", "error": str(e)}
 
+# ==================== HEADERS ====================
 def search_headers(url):
     if not url.startswith('http'):
         url = 'https://' + url
@@ -564,10 +594,12 @@ def search_headers(url):
     except Exception as e:
         return {"source": "headers", "error": str(e)}
 
+# ==================== SOCIAL LINKS ====================
 def search_social_links(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     return {"source": "social_links", "data": {"vk": f"https://vk.com/search?c[q]={phone_clean}&c[section]=people", "whatsapp": f"https://wa.me/{phone_clean}", "telegram": f"https://t.me/{phone_clean}", "instagram": f"https://www.instagram.com/{phone_clean}", "facebook": f"https://www.facebook.com/search/top?q={phone_clean}", "tiktok": f"https://www.tiktok.com/search?q={phone_clean}", "twitter": f"https://twitter.com/search?q={phone_clean}", "ok": f"https://ok.ru/search?q={phone_clean}", "viber": f"viber://add?number={phone_clean}", "yandex": f"https://yandex.ru/search/?text={phone_clean}", "google": f"https://www.google.com/search?q={phone_clean}"}}
 
+# ==================== DORKS ====================
 def search_dorks(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     if phone_clean.startswith('8'):
@@ -575,6 +607,7 @@ def search_dorks(phone):
     dorks = [f'"{phone_clean}"', f'"{phone_clean}" filetype:pdf', f'"{phone_clean}" site:vk.com', f'"{phone_clean}" site:avito.ru', f'"{phone_clean}" site:ok.ru', f'"{phone_clean}" "ИНН"', f'"{phone_clean}" "паспорт"', f'"{phone_clean}" "адрес"']
     return {"source": "dorks", "data": {"phone": phone_clean, "dorks": [f"https://www.google.com/search?q={quote(d)}" for d in dorks]}}
 
+# ==================== DETECT TYPE ====================
 def detect_type(query: str) -> Tuple[str, Optional[str]]:
     query = query.strip()
     if not query:
@@ -632,6 +665,7 @@ def detect_type(query: str) -> Tuple[str, Optional[str]]:
 def check_api_key():
     return request.headers.get('X-API-Key') == MASTER_KEY
 
+# ==================== /search ====================
 @app.route('/search', methods=['POST'])
 def search():
     if not check_api_key():
@@ -653,118 +687,167 @@ def search():
 
     result = {"query": query, "type": search_type, "timestamp": datetime.now().isoformat(), "sources": []}
 
-    if search_type in ["phone", "email", "fio", "vk", "telegram"]:
-        result["sources"].append(search_depsearch(query, search_type))
+    # GLOOM (заменяет BigBase + DepSearch)
+    if search_type in ["phone", "email", "fio", "vk", "telegram", "telegram_id", "telegram_username", "username", "ip", "passport", "inn", "snils", "card"]:
+        result["sources"].append(search_gloom(query, search_type))
 
-    if search_type in ["phone", "email", "fio", "auto", "inn", "passport", "ip"]:
-        result["sources"].append(search_bigbase(query, search_type))
-
+    # INFINITY
     if search_type in ["phone", "email", "fio"]:
         result["sources"].append(search_infinity(query, search_type))
 
+    # WHITE SEARCH
     if search_type in ["phone", "email", "fio", "telegram", "telegram_id", "telegram_username", "vk", "ip", "snils", "inn", "passport", "auto", "vin"]:
         result["sources"].append(search_white_search(query, search_type))
 
+    # JITLER
     if search_type in ["phone", "telegram", "telegram_id", "telegram_username", "vk"]:
         result["sources"].append(search_jitler(query, search_type))
 
+    # NIGHT SEARCH
     if search_type in ["phone", "email", "fio", "passport", "inn", "snils", "vk", "telegram", "telegram_id", "telegram_username", "auto", "vin", "ip", "ogrn", "username", "domain", "card", "bank"]:
         result["sources"].append(search_nightsearch(query, search_type))
 
+    # HUNTER.HOW
     if search_type in ["ip", "domain"]:
         result["sources"].append(search_hunterhow(query, search_type))
 
+    # HUNTER.IO
     if search_type in ["domain", "company", "email"]:
         result["sources"].append(search_hunter(query, search_type))
 
+    # NUMVERIFY
     if search_type == "phone":
         result["sources"].append(search_numverify(query))
 
+    # LEAKCHECK
     if search_type in ["email", "phone"]:
         result["sources"].append(search_leakcheck(query, search_type))
 
+    # SNUSBASE
     if search_type in ["email", "fio", "ip"]:
         result["sources"].append(search_snusbase(query, search_type))
 
+    # VERIPHONE
     if search_type == "phone":
         result["sources"].append(search_veriphone(query))
 
+    # IPGEO
     if search_type == "ip":
         result["sources"].append(search_ipgeo(query))
 
+    # OFDATA
     if search_type in ["inn", "ogrn", "fio", "company"]:
         result["sources"].append(search_ofdata(query, search_type))
 
+    # OMKAR PHONE
     if search_type == "phone":
         result["sources"].append(search_omkar_phone(query))
 
+    # OMKAR EMAIL
     if search_type == "email":
         result["sources"].append(search_omkar_email(query))
 
+    # OMKAR REVIEWS
     if search_type in ["fio", "phone", "username"]:
         result["sources"].append(search_omkar_reviews(query))
 
+    # VK
     if search_type == "vk":
         result["sources"].append(search_vk(query))
 
+    # INTELX
     if search_type == "phone":
         result["sources"].append(search_intelx(query))
 
+    # WHATSAPP
     if search_type == "phone":
         result["sources"].append(search_whatsapp(query))
 
+    # ODNOKLASSNIKI
     if search_type == "phone":
         result["sources"].append(search_odnoklassniki(query))
 
+    # TELEGRAM
     if search_type == "username":
         result["sources"].append(search_telegram(query))
 
+    # TIKTOK
     if search_type == "username":
         result["sources"].append(search_tiktok(query))
 
+    # BIN
     if re.match(r'^\d{6,8}$', query):
         result["sources"].append(search_bin(query))
 
+    # WHOIS
     if search_type == "domain":
         result["sources"].append(search_whois(query))
 
+    # DNS
     if search_type == "domain":
         result["sources"].append(search_dns(query))
 
+    # SUBDOMAINS
     if search_type == "domain":
         result["sources"].append(search_subdomains(query))
 
+    # HEADERS
     if search_type == "domain":
         result["sources"].append(search_headers(query))
 
+    # SOCIAL LINKS
     if search_type == "phone":
         result["sources"].append(search_social_links(query))
 
+    # DORKS
     if search_type == "phone":
         result["sources"].append(search_dorks(query))
 
     return jsonify(result)
 
+# ==================== /health ====================
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
 
+# ==================== / ====================
 @app.route('/', methods=['GET'])
 def index():
     return jsonify({
         "name": "DeepTrek API",
-        "version": "25.0",
+        "version": "26.0",
         "sources": [
-            "DepSearch", "BigBase", "Infinity (2 ключа)", "White Search",
-            "Jitler", "Night Search", "Hunter.how", "Hunter.io",
-            "Numverify", "LeakCheck", "Snusbase",
-            "Veriphone", "IpGeo", "OFDATA", "Omkar Phone",
-            "Omkar Email", "Omkar Reviews", "VK API",
-            "IntelX", "WhatsApp", "Odnoklassniki", "Telegram",
-            "TikTok", "BIN", "WHOIS", "DNS", "Subdomains",
-            "Headers", "Social Links", "Google Dorks"
+            "Gloom (заменяет BigBase + DepSearch)",
+            "Infinity (2 ключа)",
+            "White Search",
+            "Jitler",
+            "Night Search",
+            "Hunter.how",
+            "Hunter.io",
+            "Numverify",
+            "LeakCheck",
+            "Snusbase",
+            "Veriphone",
+            "IpGeo",
+            "OFDATA",
+            "Omkar Phone",
+            "Omkar Email",
+            "Omkar Reviews",
+            "VK API",
+            "IntelX",
+            "WhatsApp",
+            "Odnoklassniki",
+            "Telegram",
+            "TikTok",
+            "BIN",
+            "WHOIS",
+            "DNS",
+            "Subdomains",
+            "Headers",
+            "Social Links",
+            "Google Dorks"
         ],
-        "total_sources": 30
+        "total_sources": 29
     })
 
 if __name__ == '__main__':
